@@ -13,11 +13,12 @@ class BrowserController:
     A controller for managing a Playwright browser instance,
     handling page interactions, and annotating screenshots for an AI agent.
     """
-    def __init__(self, run_folder: str):
+    def __init__(self, run_folder: str, agent=None):
         self.browser: Browser | None = None
         self.page: Page | None = None
         self.playwright = None
         self.run_folder = run_folder
+        self.agent = agent
         self.labeled_elements: List[ElementHandle] = []
         self.current_screenshot_bytes: Optional[bytes] = None
         self.preprocessor_script: Optional[str] = None

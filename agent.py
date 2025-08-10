@@ -1,13 +1,16 @@
 import os
 import json
+import re
 from datetime import datetime
 import importlib.util
 from ai_model import AIModel
 from browser_controller import BrowserController
 from langchain_agent import (
+    BrowserTool, MacroTool,
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
-    GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool
+    GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
+    CreateMacroTool
 )
 from vision_tools import FindElementWithVisionTool
 from langchain.agents import AgentExecutor, create_react_agent
@@ -31,7 +34,7 @@ class WebAgent:
         self.run_folder = f"runs/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
         self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name)
-        self.browser = BrowserController(run_folder=self.run_folder)
+        self.browser = BrowserController(run_folder=self.run_folder, agent=self)
 
         # Added robust encoding and error handling
         if os.path.exists(self.memory_file):
@@ -59,7 +62,8 @@ class WebAgent:
             GetAllLinksTool(controller=self.browser),
             PerformGoogleSearchTool(controller=self.browser),
             WriteFileTool(),
-            ExecuteScriptTool()
+            ExecuteScriptTool(),
+            CreateMacroTool(controller=self.browser)
         ]
 
         # Load dynamic tools
@@ -88,6 +92,60 @@ And here are the names of the tools you can use: {tool_names}
 
         self.main_agent = create_react_agent(self.ai_model.main_model, self.tools, prompt)
         self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True)
+
+    def get_tool_definitions(self):
+        return "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
+
+    async def create_macro(self, objective: str):
+        # Sanitize objective to create a valid file/class name
+        sanitized_objective = re.sub(r'\s+', '_', objective)
+        sanitized_objective = re.sub(r'\W+', '', sanitized_objective).lower()
+        tool_name = f"{sanitized_objective}_macro"
+        class_name = f"{sanitized_objective.replace('_', ' ').title().replace(' ', '')}MacroTool"
+
+        macros_dir = "macros"
+        if not os.path.exists(macros_dir):
+            os.makedirs(macros_dir)
+
+        module_path = os.path.join(macros_dir, f"{tool_name}.py")
+
+        tool_definitions = self.get_tool_definitions()
+        script_content = await self.ai_model.generate_macro_script(objective, tool_definitions, tool_name, class_name)
+
+        if script_content:
+            # The generated script needs access to the base classes and tools
+            script_header = "from langchain_agent import MacroTool, GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool, TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool, GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool\n"
+            script_content = script_header + script_content
+
+            with open(module_path, 'w', encoding='utf-8') as f:
+                f.write(script_content)
+            print(f"[INFO] Created new macro script: {module_path}")
+
+            dynamic_tools_path = config.DYNAMIC_TOOLS_PATH
+            if os.path.exists(dynamic_tools_path):
+                with open(dynamic_tools_path, 'r', encoding='utf-8') as f:
+                    tools_config = json.load(f)
+            else:
+                tools_config = []
+
+            # Remove existing tool with the same name if any
+            tools_config = [t for t in tools_config if t['name'] != tool_name]
+
+            tools_config.append({
+                "name": tool_name,
+                "module_path": module_path,
+                "class_name": class_name
+            })
+
+            with open(dynamic_tools_path, 'w', encoding='utf-8') as f:
+                json.dump(tools_config, f, indent=4)
+
+            print(f"[INFO] Updated dynamic tools config with new macro: {tool_name}")
+
+            # Reload dynamic tools
+            self.load_dynamic_tools()
+        else:
+            print("[ERROR] Failed to generate macro script.")
 
     def load_dynamic_tools(self):
         dynamic_tools_path = config.DYNAMIC_TOOLS_PATH
@@ -118,6 +176,35 @@ And here are the names of the tools you can use: {tool_names}
     async def run(self):
         await self.browser.start()
         await self.browser.goto_url(self.start_url)
+
+        # Sanitize the objective to find a potential macro name
+        sanitized_objective = re.sub(r'\s+', '_', self.objective)
+        sanitized_objective = re.sub(r'\W+', '', sanitized_objective).lower()
+        macro_tool_name = f"{sanitized_objective}_macro"
+
+        # Check if a macro for this objective exists
+        matching_macro = None
+        for tool in self.tools:
+            if tool.name == macro_tool_name:
+                matching_macro = tool
+                break
+
+        if matching_macro:
+            print(f"[INFO] Found matching macro '{macro_tool_name}'. Executing macro.")
+            try:
+                # The arun method of the macro tool will execute the sequence of actions
+                result = await matching_macro.arun({}) # Pass empty dict for args if no args are expected
+                self.last_action_result = result
+                self.session_memory.append(f"Macro Result: {self.last_action_result}")
+                print(f"[INFO] Macro execution finished. Result: {result}")
+            except Exception as e:
+                error_message = f"An unexpected error occurred during macro execution: {e}"
+                print(f"[ERROR] {error_message}")
+                self.session_memory.append(f"Error: {error_message}")
+
+            # After executing the macro, the run is considered complete for this step.
+            print("\n[INFO] Agent run has finished (macro executed).")
+            return # Exit the run method
 
         # Initial observation to populate labeled_elements in browser_controller
         await self.browser.observe_and_annotate(step=0)

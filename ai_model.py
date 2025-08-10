@@ -94,14 +94,16 @@ class OllamaChatModel(BaseChatModel):
 
 
 class AIModel:
-    def __init__(self, main_model_name='llava:13b', supervisor_model_name='llava:34b', fast_model_name='llava:7b'):
+    def __init__(self, main_model_name='llava:13b', supervisor_model_name='llava:34b', fast_model_name='llava:7b', scripter_model_name=None):
         self.main_model_name = main_model_name
         self.fast_model_name = fast_model_name
         self.supervisor_model_name = supervisor_model_name
+        self.scripter_model_name = scripter_model_name if scripter_model_name else supervisor_model_name
         
         self.main_model = OllamaChatModel(model_name=self.main_model_name)
         self.fast_model = OllamaChatModel(model_name=self.fast_model_name)
         self.supervisor_model = OllamaChatModel(model_name=self.supervisor_model_name)
+        self.scripter_model = OllamaChatModel(model_name=self.scripter_model_name)
 
         try:
             # Check if the model exists locally
@@ -112,7 +114,7 @@ class AIModel:
             # to prevent errors from malformed API responses.
             local_models = [m.get('name') for m in models_list if isinstance(m, dict)]
             local_models = [name for name in local_models if name]
-            required_models = [self.main_model_name, self.supervisor_model_name, self.fast_model_name]
+            required_models = [self.main_model_name, self.supervisor_model_name, self.fast_model_name, self.scripter_model_name]
             for model in required_models:
                  if model not in local_models:
                     print(f"[INFO] Model '{model}' not found locally. Attempting to pull it now...")
@@ -382,3 +384,45 @@ Labeled elements provided:
                 "action_type": "pause_for_user",
                 "details": {"instruction_to_user": "Failed to generate valid action. Will retry."}
             }
+
+    async def generate_macro_script(self, objective: str, tool_definitions: str, tool_name: str, class_name: str) -> str:
+        """
+        Generates a Python script for a macro tool based on an objective.
+        """
+        prompt = f"""
+You are a script-generating AI. Your task is to create a Python script that defines a new LangChain tool for accomplishing a specific objective. The tool should be a class that inherits from `MacroTool`.
+
+The script should contain a sequence of calls to the basic tools available to the agent.
+
+Here are the available basic tools:
+{tool_definitions}
+
+Objective: {objective}
+
+The class name for the tool must be `{class_name}`.
+The tool name (the `name` attribute of the class) must be `{tool_name}`.
+
+You must respond with only the Python script, enclosed in ```python ... ```.
+Do not include any other text or explanations.
+The script should define a class that inherits from `MacroTool` and implements the `_arun` method.
+The `_arun` method should be a coroutine (async def).
+
+Generated Python script:
+"""
+        messages = [
+            HumanMessage(content=prompt)
+        ]
+        response = await self.scripter_model.agenerate(messages=[messages])
+        response_text = response.generations[0].message.content.strip()
+
+        # Extract the python script from the response
+        match = re.search(r"```python\s*(.*?)\s*```", response_text, re.DOTALL)
+        if match:
+            return match.group(1)
+        else:
+            # Fallback to returning the whole response, but try to clean it
+            if response_text.startswith("```python"):
+                response_text = response_text[len("```python"):]
+            if response_text.endswith("```"):
+                response_text = response_text[:-len("```")]
+            return response_text

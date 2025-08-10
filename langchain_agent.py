@@ -15,6 +15,10 @@ class BrowserTool(BaseTool):
     class Config:
         arbitrary_types_allowed = True
 
+class MacroTool(BrowserTool):
+    """Base class for macro tools."""
+    pass
+
 class GoToPageInput(BaseModel):
     url: str = Field(description="The URL to navigate to.")
 
@@ -218,3 +222,18 @@ Script exited with code {process.returncode}"""
 
     async def _arun(self, script_path: str, interpreter: str) -> str:
         return self._run(script_path, interpreter)
+
+class CreateMacroInput(BaseModel):
+    objective: str = Field(description="The objective for the new macro. This should be a descriptive sentence, e.g., 'log in to the website'.")
+
+class CreateMacroTool(BrowserTool):
+    name: str = "create_macro"
+    description: str = "Creates a new macro (a sequence of actions) to be used in the future. Use this when you identify a repetitive task."
+    args_schema: Type[BaseModel] = CreateMacroInput
+
+    async def _arun(self, objective: str) -> str:
+        if not self.controller.agent:
+            return "Error: The agent is not available to create a macro."
+
+        await self.controller.agent.create_macro(objective)
+        return f"Successfully initiated the creation of a macro for the objective: '{objective}'. The new macro will be available for use in the next run."
