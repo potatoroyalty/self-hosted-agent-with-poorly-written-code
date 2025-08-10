@@ -94,7 +94,7 @@ class OllamaChatModel(BaseChatModel):
 
 
 class AIModel:
-    def __init__(self, main_model_name='llava:13b', supervisor_model_name='llava:34b', fast_model_name='llava:7b', scripter_model_name=None):
+    def __init__(self, main_model_name='llava:13b', supervisor_model_name='mixtral:latest', fast_model_name='llava:7b', scripter_model_name=None):
         self.main_model_name = main_model_name
         self.fast_model_name = fast_model_name
         self.supervisor_model_name = supervisor_model_name

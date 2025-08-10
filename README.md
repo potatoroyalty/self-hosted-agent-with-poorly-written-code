@@ -64,14 +64,14 @@ This agent requires [Ollama](https://ollama.com/) to be running on your machine.
 The agent will attempt to download the required AI models automatically if they are not already available locally. The default models are:
 
 *   `llava:13b` (main model)
-*   `llava:34b` (supervisor model)
+*   `mixtral:latest` (supervisor model)
 *   `llava:7b` (fast model for simple tasks)
 
 You can also pull them manually before running the agent for the first time:
 
 ```bash
 ollama pull llava:13b
-ollama pull llava:34b
+ollama pull mixtral:latest
 ollama pull llava:7b
 ```
 

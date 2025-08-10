@@ -10,7 +10,7 @@ DYNAMIC_TOOLS_PATH = "dynamic_tools.json"
 # Main model for complex reasoning
 MAIN_MODEL = "llava:13b"
 # Supervisor model for high-level overview
-SUPERVISOR_MODEL = "llava:13b"
+SUPERVISOR_MODEL = "mixtral:latest"
 # Fast model for simple tasks like self-critique
 FAST_MODEL = "llava:7b"
 
