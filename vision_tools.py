@@ -109,8 +109,8 @@ Candidates:
 
         messages = [HumanMessage(content=message_content)]
 
-        # Use the fast model for this targeted task
-        response = await self.ai_model.fast_model.agenerate(messages=[messages])
+        # Use the vision model for this targeted task
+        response = await self.ai_model.vision_model.agenerate(messages=[messages])
         response_text = response.generations[0].message.content.strip()
 
         print(f"[Vision Tool] Model response: {response_text}")

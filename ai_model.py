@@ -94,15 +94,17 @@ class OllamaChatModel(BaseChatModel):
 
 
 class AIModel:
-    def __init__(self, main_model_name='llava:13b', supervisor_model_name='llava:34b', fast_model_name='llava:7b', scripter_model_name=None):
+    def __init__(self, main_model_name='mixtral:latest', supervisor_model_name='mixtral:latest', fast_model_name='phi3', vision_model_name='gemma:7b', scripter_model_name=None):
         self.main_model_name = main_model_name
         self.fast_model_name = fast_model_name
         self.supervisor_model_name = supervisor_model_name
+        self.vision_model_name = vision_model_name
         self.scripter_model_name = scripter_model_name if scripter_model_name else supervisor_model_name
         
         self.main_model = OllamaChatModel(model_name=self.main_model_name)
         self.fast_model = OllamaChatModel(model_name=self.fast_model_name)
         self.supervisor_model = OllamaChatModel(model_name=self.supervisor_model_name)
+        self.vision_model = OllamaChatModel(model_name=self.vision_model_name)
         self.scripter_model = OllamaChatModel(model_name=self.scripter_model_name)
 
         try:
@@ -114,7 +116,7 @@ class AIModel:
             # to prevent errors from malformed API responses.
             local_models = [m.get('name') for m in models_list if isinstance(m, dict)]
             local_models = [name for name in local_models if name]
-            required_models = [self.main_model_name, self.supervisor_model_name, self.fast_model_name, self.scripter_model_name]
+            required_models = [self.main_model_name, self.supervisor_model_name, self.fast_model_name, self.vision_model_name, self.scripter_model_name]
             for model in required_models:
                  if model not in local_models:
                     print(f"[INFO] Model '{model}' not found locally. Attempting to pull it now...")
@@ -166,7 +168,7 @@ class AIModel:
                 ]
             )
         ]
-        response = await self.supervisor_model.agenerate(messages=[messages])
+        response = await self.vision_model.agenerate(messages=[messages])
         return response.generations[0].message.content.strip()
 
     async def get_page_description(self, encoded_image, labeled_elements):
@@ -198,7 +200,7 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.main_model.agenerate(messages=[messages])
+        response = await self.vision_model.agenerate(messages=[messages])
         return response.generations[0].message.content.strip()
 
     async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image):
@@ -226,7 +228,6 @@ Labeled elements provided:
             HumanMessage(
                 content=[
                     {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}},
                 ]
             )
         ]
@@ -369,7 +370,7 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.main_model.agenerate(messages=[messages])
+        response = await self.vision_model.agenerate(messages=[messages])
         response_text = response.generations[0].message.content
 
         try:

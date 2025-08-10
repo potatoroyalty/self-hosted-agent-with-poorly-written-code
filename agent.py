@@ -20,7 +20,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 import config
 
 class WebAgent:
-    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS):
+    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS):
         self.objective = objective
         self.start_url = start_url
         self.memory_file = memory_file
@@ -33,7 +33,7 @@ class WebAgent:
         
         self.run_folder = f"runs/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
-        self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name)
+        self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
         self.browser = BrowserController(run_folder=self.run_folder, agent=self)
 
         # Added robust encoding and error handling
