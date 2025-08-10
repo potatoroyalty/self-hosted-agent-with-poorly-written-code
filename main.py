@@ -13,6 +13,7 @@ async def main():
     parser.add_argument("--model", type=str, default=config.MAIN_MODEL, help="The main Ollama model for complex reasoning (e.g., 'llava:13b').")
     parser.add_argument("--supervisor-model", type=str, default=config.SUPERVISOR_MODEL, help="The Ollama model for high-level overview (e.g., 'llava:13b').")
     parser.add_argument("--fast-model", type=str, default=config.FAST_MODEL, help="A smaller, faster model for simple tasks like self-critique (e.g., 'llava:7b').")
+    parser.add_argument("--vision-model", type=str, default=config.VISION_MODEL, help="The Ollama model for vision tasks (e.g., 'gemma:7b').")
     parser.add_argument("--max-steps", type=int, default=config.MAX_STEPS, help="The maximum number of steps the agent can take.")
     parser.add_argument("--low-memory", action="store_true", help="Use smaller models to reduce memory usage (main/supervisor: 7b, fast: phi3:mini). Overrides other model arguments.")
     args = parser.parse_args()
@@ -38,9 +39,10 @@ async def main():
         args.model = config.LOW_MEMORY_MAIN_MODEL
         args.supervisor_model = config.LOW_MEMORY_SUPERVISOR_MODEL
         args.fast_model = config.LOW_MEMORY_FAST_MODEL
+        args.vision_model = config.LOW_MEMORY_VISION_MODEL
 
     try:
-        agent = WebAgent(objective=args.objective, start_url=args.url, model_name=args.model, supervisor_model_name=args.supervisor_model, fast_model_name=args.fast_model, max_steps=args.max_steps)
+        agent = WebAgent(objective=args.objective, start_url=args.url, model_name=args.model, supervisor_model_name=args.supervisor_model, fast_model_name=args.fast_model, vision_model_name=args.vision_model, max_steps=args.max_steps)
     except Exception as e:
         print(f"[FATAL] Failed to initialize the agent: {e}")
         return
