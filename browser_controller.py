@@ -35,7 +35,7 @@ class BrowserController:
     async def start(self):
         """Starts the Playwright instance and launches a new browser."""
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=False)
+        self.browser = await self.playwright.chromium.launch(headless=True)
         self.page = await self.browser.new_page()
 
     async def close(self):

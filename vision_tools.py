@@ -15,11 +15,6 @@ class FindElementWithVisionTool(BaseTool):
     browser: BrowserController
     ai_model: AIModel
 
-    def __init__(self, browser: BrowserController, ai_model: AIModel):
-        super().__init__()
-        self.browser = browser
-        self.ai_model = ai_model
-
     def _run(self, query: str):
         """Use the asynchronous version of the tool."""
         raise NotImplementedError("This tool does not support synchronous execution.")
