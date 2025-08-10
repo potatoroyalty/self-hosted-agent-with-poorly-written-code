@@ -1,0 +1,1 @@
+- Directive: Ensure to initialize and utilize `self.preprocessor_script` in every step of your scripted actions as it seems vital for executing preprocessing tasks correctly. Ignore this, and you face repeated errors related to attribute accessibility.
