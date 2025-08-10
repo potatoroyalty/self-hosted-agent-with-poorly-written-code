@@ -6,6 +6,7 @@ import io
 from typing import List, Tuple, Dict, Optional, Any
 from playwright.async_api import async_playwright, Browser, Page, ElementHandle
 from PIL import Image, ImageDraw, ImageFont
+import config
 
 class BrowserController:
     """
@@ -17,9 +18,18 @@ class BrowserController:
         self.page: Page | None = None
         self.playwright = None
         self.run_folder = run_folder
-        self.labeled_elements: List[ElementHandle] = [] # New instance variable
+        self.labeled_elements: List[ElementHandle] = []
+        self.current_screenshot_bytes: Optional[bytes] = None
+        self.preprocessor_script: Optional[str] = None
         # Ensure the run folder exists for saving screenshots
         os.makedirs(self.run_folder, exist_ok=True)
+
+        # Load the preprocessor script
+        try:
+            with open(config.PREPROCESSOR_PATH, 'r', encoding='utf-8') as f:
+                self.preprocessor_script = f.read()
+        except FileNotFoundError:
+            print(f"[WARN] Preprocessor script not found at {config.PREPROCESSOR_PATH}. SnapDOM generation will not be available.")
 
     async def start(self):
         """Starts the Playwright instance and launches a new browser."""
@@ -50,6 +60,26 @@ class BrowserController:
         page = self._get_page()
         await page.goto(url if "://" in url else "http://" + url)
 
+    async def get_snapdom(self) -> Optional[Dict[str, Any]]:
+        """
+        Executes the preprocessor script on the current page to get a simplified,
+        structured representation of the DOM.
+
+        Returns:
+            A dictionary representing the SnapDOM, or None if the script is not available.
+        """
+        page = self._get_page()
+        if not self.preprocessor_script:
+            print("[ERROR] Preprocessor script is not loaded. Cannot get SnapDOM.")
+            return None
+
+        try:
+            snapdom = await page.evaluate(self.preprocessor_script)
+            return snapdom
+        except Exception as e:
+            print(f"[ERROR] Failed to execute preprocessor script and get SnapDOM: {e}")
+            return None
+
     async def observe_and_annotate(self, step: int) -> Tuple[str, List[ElementHandle]]:
         """
         Captures a screenshot, annotates it with labels on interactive elements,
@@ -74,6 +104,7 @@ class BrowserController:
         
         # Take screenshot into a memory buffer first
         screenshot_bytes = await page.screenshot()
+        self.current_screenshot_bytes = screenshot_bytes # Store for later use
 
         # Efficiently filter for visible elements with valid bounding boxes
         elements_to_label = []
@@ -131,7 +162,48 @@ class BrowserController:
         self.labeled_elements = labeled_elements
         return encoded_image, labeled_elements
 
-    
+    async def get_element_screenshot(self, label: int) -> Optional[str]:
+        """
+        Crops the last screenshot to a specific labeled element's bounding box.
+
+        Args:
+            label (int): The numeric label of the element.
+
+        Returns:
+            A base64 encoded string of the cropped image, or None if an error occurs.
+        """
+        if not self.current_screenshot_bytes:
+            print("[ERROR] No screenshot available to crop.")
+            return None
+
+        try:
+            element_index = int(label) - 1
+        except (ValueError, TypeError):
+            print(f"[ERROR] Invalid element label '{label}'. Must be a number.")
+            return None
+
+        if not (0 <= element_index < len(self.labeled_elements)):
+            print(f"[ERROR] Invalid element label '{label}'. There are only {len(self.labeled_elements)} labeled elements.")
+            return None
+
+        element = self.labeled_elements[element_index]
+        box = await element.bounding_box()
+
+        if not box:
+            print(f"[ERROR] Element {label} has no bounding box.")
+            return None
+
+        img = Image.open(io.BytesIO(self.current_screenshot_bytes))
+
+        # Crop the image using the bounding box
+        cropped_img = img.crop((box['x'], box['y'], box['x'] + box['width'], box['y'] + box['height']))
+
+        # Encode the cropped image to base64
+        buffer = io.BytesIO()
+        cropped_img.save(buffer, format="PNG")
+        encoded_image = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+        return encoded_image
 
     async def execute_action(self, action_json: dict) -> Tuple[bool, str]:
         """
