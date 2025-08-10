@@ -88,10 +88,10 @@ And here are the names of the tools you can use: {tool_names}
 """)
 
         self.fast_agent = create_react_agent(self.ai_model.fast_model, self.tools, prompt)
-        self.fast_agent_executor = AgentExecutor(agent=self.fast_agent, tools=self.tools, verbose=True)
+        self.fast_agent_executor = AgentExecutor(agent=self.fast_agent, tools=self.tools, verbose=True, handle_parsing_errors=True)
 
         self.main_agent = create_react_agent(self.ai_model.main_model, self.tools, prompt)
-        self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True)
+        self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True, handle_parsing_errors=True)
 
     def get_tool_definitions(self):
         return "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
