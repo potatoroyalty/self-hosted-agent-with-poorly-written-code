@@ -231,6 +231,10 @@ class CreateMacroTool(BrowserTool):
     description: str = "Creates a new macro (a sequence of actions) to be used in the future. Use this when you identify a repetitive task."
     args_schema: Type[BaseModel] = CreateMacroInput
 
+    def _run(self, objective: str) -> str:
+        """Use the asynchronous version of the tool."""
+        raise NotImplementedError("This tool does not support synchronous execution.")
+
     async def _arun(self, objective: str) -> str:
         if not self.controller.agent:
             return "Error: The agent is not available to create a macro."
