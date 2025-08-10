@@ -168,7 +168,7 @@ class AIModel:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=[messages])
+        response = await self.vision_model.agenerate(messages=messages)
         return response.generations[0].message.content.strip()
 
     async def get_page_description(self, encoded_image, labeled_elements):
@@ -200,7 +200,7 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=[messages])
+        response = await self.vision_model.agenerate(messages=messages)
         return response.generations[0].message.content.strip()
 
     async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image):
@@ -231,7 +231,7 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.main_model.agenerate(messages=[messages])
+        response = await self.main_model.agenerate(messages=messages)
         response_text = response.generations[0].message.content
 
         try:
@@ -276,7 +276,7 @@ Labeled elements provided:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.fast_model.agenerate(messages=[messages])
+        response = await self.fast_model.agenerate(messages=messages)
         decision = response.generations[0].message.content.strip().lower()
         print(f"[VALIDATION] AI proposed action: {json.dumps(proposed_action_json)}. Validator response: {decision}")
         return "true" in decision
@@ -301,7 +301,7 @@ Labeled elements provided:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.fast_model.agenerate(messages=[messages])
+        response = await self.fast_model.agenerate(messages=messages)
         return response.generations[0].message.content.strip()
 
     async def get_strategic_plan(self, objective, history, page_description, self_critique):
@@ -330,7 +330,7 @@ Labeled elements provided:
         ]
         text_model = self.main_model # if "llava" not in self.main_model_name else self.fast_model
         
-        response = await text_model.agenerate(messages=[messages])
+        response = await text_model.agenerate(messages=messages)
         response_text = response.generations[0].message.content
 
         try:
@@ -370,7 +370,7 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=[messages])
+        response = await self.vision_model.agenerate(messages=messages)
         response_text = response.generations[0].message.content
 
         try:
@@ -413,7 +413,7 @@ Generated Python script:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.scripter_model.agenerate(messages=[messages])
+        response = await self.scripter_model.agenerate(messages=messages)
         response_text = response.generations[0].message.content.strip()
 
         # Extract the python script from the response

@@ -71,7 +71,7 @@ class WebAgent:
 
         # Initialize LangChain agent
         prompt = PromptTemplate.from_template("""
-YouYou are a web browsing agent. Your goal is to complete the objective.
+You are a web browsing agent. Your goal is to complete the objective.
 
 Objective: {objective}
 
@@ -79,10 +79,20 @@ Previous Action Result: {last_action_result}
 
 Self-Critique from previous runs: {self_critique}
 
+Use the following format:
+
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
 Here are the tools you can use:
 {tools}
 
-And here are the names of the tools you can use: {tool_names}
+Begin!
 
 {agent_scratchpad}
 """)

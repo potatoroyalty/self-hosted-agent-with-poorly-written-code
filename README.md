@@ -5,7 +5,7 @@ This project is an AI-powered web agent that can navigate and interact with webs
 ## Features
 
 *   **Autonomous Web Navigation**: The agent can browse websites, click elements, type text, and navigate to different pages to complete a given objective.
-*   **Vision-Capable**: Utilizes vision-language models (like LLaVA) to analyze screenshots of web pages, making it capable of understanding pages that are heavily reliant on JavaScript and dynamic content.
+*   **Vision-Capable**: Utilizes vision-language models (like Gemma) to analyze screenshots of web pages, making it capable of understanding pages that are heavily reliant on JavaScript and dynamic content.
 *   **Dynamic Macro Creation**: The agent can write its own Python scripts (macros) to automate repetitive tasks it encounters.
 *   **Self-Critique and Learning**: After each run, the agent reflects on its performance and generates self-critiques to improve its decision-making in future runs.
 *   **Local First**: Runs entirely on your local machine, ensuring privacy and control over your data. Requires a running Ollama instance.
@@ -25,7 +25,8 @@ This process is orchestrated by several key components:
 *   `agent.py`: The core of the agent, which manages the main loop, memory, and interaction between the AI models and the browser.
 *   `ai_model.py`: Handles all communication with the Ollama AI models, including generating descriptions, plans, and actions.
 *   `browser_controller.py`: Controls the Playwright browser, allowing the agent to interact with web pages.
-*   `tools.py` and `langchain_agent.py`: Define the set of tools that the agent can use to interact with the web, such as `click`, `type`, and `google_search`.
+*   `langchain_agent.py`: Defines the LangChain tools (e.g., `click`, `type`) that the agent can use to interact with the web.
+*   `tools.py`: Defines the data schemas for the parameters of the tools.
 
 ## Setup
 
@@ -63,17 +64,23 @@ This agent requires [Ollama](https://ollama.com/) to be running on your machine.
 
 The agent will attempt to download the required AI models automatically if they are not already available locally. The default models are:
 
-*   `llava:13b` (main model)
-*   `llava:34b` (supervisor model)
-*   `llava:7b` (fast model for simple tasks)
+*   **Main/Supervisor Model**: `mixtral:latest`
+*   **Fast Model**: `phi3`
+*   **Vision Model**: `gemma:7b`
 
 You can also pull them manually before running the agent for the first time:
 
 ```bash
-ollama pull llava:13b
-ollama pull llava:34b
-ollama pull llava:7b
+ollama pull mixtral:latest
+ollama pull phi3
+ollama pull gemma:7b
 ```
+
+For users with limited resources, the agent includes a `--low-memory` mode which is enabled by default. This mode uses smaller, more efficient models:
+
+*   **Main/Supervisor Model**: `mistral:7b`
+*   **Fast Model**: `phi3`
+*   **Vision Model**: `gemma:2b`
 
 You can configure the agent to use different models by passing command-line arguments (see the "Usage" section).
 
@@ -99,13 +106,14 @@ python main.py
 
 You can customize the agent's behavior with the following command-line arguments:
 
-*   `--objective`: (Required) The main goal for the agent to achieve.
-*   `--url`: The starting URL for the agent. Defaults to `https://www.google.com/search?q=...`.
-*   `--model`: The main Ollama model for complex reasoning (e.g., `llava:13b`).
-*   `--supervisor-model`: The Ollama model for high-level overview (e.g., `llava:34b`).
-*   `--fast-model`: A smaller, faster model for simple tasks (e.g., `llava:7b`).
+*   `--objective`: (Optional) The main goal for the agent to achieve. If not provided, the script will prompt for it.
+*   `--url`: The starting URL for the agent. Defaults to `https://www.google.com`.
+*   `--model`: The main Ollama model for complex reasoning (e.g., `mixtral:latest`).
+*   `--supervisor-model`: The Ollama model for high-level overview (e.g., `mixtral:latest`).
+*   `--fast-model`: A smaller, faster model for simple tasks (e.g., `phi3`).
+*   `--vision-model`: The Ollama model for vision tasks (e.g., `gemma:7b`).
 *   `--max-steps`: The maximum number of steps the agent can take.
-*   `--low-memory`: Use smaller, less resource-intensive models. Overrides other model arguments.
+*   `--low-memory`: Use smaller, less resource-intensive models. This is enabled by default. Overrides other model arguments.
 
 **Example with custom models and start URL:**
 
