@@ -9,6 +9,7 @@ from langchain_agent import (
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool
 )
+from vision_tools import FindElementWithVisionTool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -32,16 +33,6 @@ class WebAgent:
         self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name)
         self.browser = BrowserController(run_folder=self.run_folder)
 
-        # NEW: Load the preprocessor script
-        self.preprocessor_script = ""
-        preprocessor_path = config.PREPROCESSOR_PATH
-        if os.path.exists(preprocessor_path):
-            print(f"[INFO] Loading preprocessor script from {preprocessor_path}")
-            with open(preprocessor_path, 'r', encoding='utf-8') as f:
-                self.preprocessor_script = f.read()
-        else:
-            print(f"[WARN] Preprocessor script not found at {preprocessor_path}. The agent will rely on basic observations.")
-
         # Added robust encoding and error handling
         if os.path.exists(self.memory_file):
             print(f"[INFO] Loading long-term memory from {self.memory_file}")
@@ -56,6 +47,7 @@ class WebAgent:
 
         # Initialize LangChain tools
         self.tools = [
+            FindElementWithVisionTool(browser=self.browser, ai_model=self.ai_model),
             GoToPageTool(controller=self.browser),
             ClickElementTool(controller=self.browser),
             TypeTextTool(controller=self.browser),
