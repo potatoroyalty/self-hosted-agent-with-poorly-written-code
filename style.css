@@ -7,8 +7,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #1a1a1a;
-    color: #f0f0f0;
+    background-color: var(--primary-bg-color);
+    color: var(--primary-text-color);
     overflow: hidden; /* Hide scrollbars from the body */
 }
 
@@ -26,8 +26,8 @@ body {
 /* Header */
 .main-header {
     grid-area: header;
-    background-color: #2a2a2a;
-    border-bottom: 1px solid #333;
+    background-color: var(--tertiary-bg-color);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -40,8 +40,8 @@ body {
 /* Left Sidebar */
 .sidebar-left {
     grid-area: sidebar-left;
-    background-color: #252526;
-    border-right: 1px solid #333;
+    background-color: var(--secondary-bg-color);
+    border-right: 1px solid var(--border-color);
     padding: 15px;
     display: flex;
     flex-direction: column;
@@ -58,7 +58,7 @@ body {
 }
 
 .sidebar-left nav ul li a {
-    color: #ccc;
+    color: var(--link-color);
     text-decoration: none;
     display: block;
     padding: 10px 15px;
@@ -69,12 +69,12 @@ body {
 
 .sidebar-left nav ul li a:hover,
 .sidebar-left nav ul li a.active {
-    background-color: #3a3a3a;
-    color: #fff;
+    background-color: var(--link-hover-bg-color);
+    color: var(--link-hover-text-color);
 }
 
 .sidebar-left nav ul li a.nav-link-disabled {
-    color: #666;
+    color: var(--disabled-text-color);
     cursor: not-allowed;
     pointer-events: none;
     background-color: transparent;
@@ -95,7 +95,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(42, 42, 42, 0.8);
+    background-color: var(--loading-overlay-bg-color);
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -105,8 +105,8 @@ body {
 }
 
 .spinner {
-    border: 6px solid #555;
-    border-top: 6px solid #007acc;
+    border: 6px solid var(--spinner-track-color);
+    border-top: 6px solid var(--accent-color);
     border-radius: 50%;
     width: 50px;
     height: 50px;
@@ -121,7 +121,7 @@ body {
 #loading-overlay p {
     margin-top: 20px;
     font-size: 1.1em;
-    color: #f0f0f0;
+    color: var(--primary-text-color);
 }
 
 #browser-view {
@@ -135,9 +135,9 @@ body {
     margin-bottom: 10px;
     padding: 10px;
     border-radius: 5px;
-    border: 1px solid #333;
-    background-color: #2a2a2a;
-    color: #f0f0f0;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
     font-family: inherit;
     font-size: 1em;
     resize: vertical;
@@ -154,23 +154,23 @@ body {
     padding: 8px 12px;
     border: none;
     border-radius: 5px;
-    background-color: #3c3c3c;
-    color: #f0f0f0;
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .automation-controls button:hover, .browser-controls button:hover {
-    background-color: #4f4f4f;
+    background-color: var(--button-hover-bg-color);
 }
 
 #script-selector, #url-bar {
     flex-grow: 1;
     padding: 8px;
     border-radius: 5px;
-    border: 1px solid #333;
-    background-color: #2a2a2a;
-    color: #f0f0f0;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
 }
 
 .browser-controls .nav-buttons {
@@ -180,8 +180,8 @@ body {
 
 .browser-window {
     flex-grow: 1;
-    background-color: #fff;
-    border: 1px solid #333;
+    background-color: var(--browser-window-bg-color);
+    border: 1px solid var(--border-color);
     border-radius: 5px;
     display: flex;
     align-items: center;
@@ -189,15 +189,15 @@ body {
 }
 
 .browser-window p {
-    color: #333;
+    color: var(--browser-window-text-color);
     font-size: 1.5em;
 }
 
 /* Right Sidebar */
 .sidebar-right {
     grid-area: sidebar-right;
-    background-color: #252526;
-    border-left: 1px solid #333;
+    background-color: var(--secondary-bg-color);
+    border-left: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -206,27 +206,27 @@ body {
 
 .tabs {
     display: flex;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .tab-link {
     flex: 1;
     padding: 10px;
-    background-color: #252526;
+    background-color: var(--tab-bg-color);
     border: none;
-    color: #ccc;
+    color: var(--tab-text-color);
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .tab-link:hover {
-    background-color: #3a3a3a;
+    background-color: var(--tertiary-bg-color);
 }
 
 .tab-link.active {
-    background-color: #1a1a1a;
-    color: #fff;
-    border-top: 2px solid #0e639c;
+    background-color: var(--tab-active-bg-color);
+    color: var(--tab-active-text-color);
+    border-top: 2px solid var(--accent-color);
 }
 
 .tab-content {
@@ -239,8 +239,8 @@ body {
 /* Status Bar */
 .status-bar {
     grid-area: status-bar;
-    background-color: #007acc;
-    color: #fff;
+    background-color: var(--accent-color);
+    color: var(--button-text-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -252,12 +252,12 @@ body {
 .quick-toggles {
     margin-top: 20px;
     padding-top: 15px;
-    border-top: 1px solid #333;
+    border-top: 1px solid var(--border-color);
 }
 
 .quick-toggles h3 {
     font-size: 0.8em;
-    color: #aaa;
+    color: var(--secondary-text-color);
     margin-bottom: 15px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -294,7 +294,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #4d4d4d;
+    background-color: var(--toggle-bg-color);
     transition: .4s;
 }
 
@@ -305,16 +305,16 @@ body {
     width: 16px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background-color: var(--toggle-slider-color);
     transition: .4s;
 }
 
 input:checked + .slider {
-    background-color: #007acc;
+    background-color: var(--accent-color);
 }
 
 input:focus + .slider {
-    box-shadow: 0 0 1px #007acc;
+    box-shadow: 0 0 1px var(--accent-color);
 }
 
 input:checked + .slider:before {
@@ -344,8 +344,8 @@ input:checked + .slider:before {
 
 #generator-view h2 {
     font-size: 1.4em;
-    color: #f0f0f0;
-    border-bottom: 1px solid #333;
+    color: var(--primary-text-color);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
 }
 
@@ -354,8 +354,8 @@ input:checked + .slider:before {
     padding: 12px 15px;
     border: none;
     border-radius: 5px;
-    background-color: #007acc;
-    color: #fff;
+    background-color: var(--accent-color);
+    color: var(--button-text-color);
     cursor: pointer;
     transition: background-color 0.2s;
     align-self: flex-start;
@@ -363,17 +363,17 @@ input:checked + .slider:before {
 }
 
 #generate-script-btn:hover {
-    background-color: #005a9e;
+    background-color: var(--accent-color-hover);
 }
 
 .code-editor {
     flex-grow: 1;
-    background-color: #1e1e1e;
-    border: 1px solid #333;
+    background-color: var(--code-editor-bg-color);
+    border: 1px solid var(--border-color);
     border-radius: 5px;
     padding: 15px;
     font-family: "SF Mono", "Courier New", Courier, monospace;
-    color: #d4d4d4;
+    color: var(--code-editor-text-color);
     overflow-y: auto;
 }
 
@@ -383,17 +383,17 @@ input:checked + .slider:before {
     top: 20px;
     left: 20px;
     right: 20px;
-    background-color: #2d2d2d;
-    border: 1px solid #444;
+    background-color: var(--popup-bg-color);
+    border: 1px solid var(--popup-border-color);
     border-radius: 8px;
     padding: 20px;
     z-index: 100;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 15px var(--box-shadow-color);
 }
 
 .clarification-popup h3 {
     margin-bottom: 15px;
-    color: #00aaff;
+    color: var(--popup-header-color);
 }
 
 .clarification-popup p {
@@ -412,15 +412,15 @@ input:checked + .slider:before {
 .clarification-popup button {
     width: 100%;
     padding: 10px;
-    background-color: #007acc;
+    background-color: var(--accent-color);
     border: none;
     border-radius: 5px;
-    color: #fff;
+    color: var(--button-text-color);
     cursor: pointer;
     text-align: left;
     transition: background-color 0.2s;
 }
 
 .clarification-popup button:hover {
-    background-color: #005a9e;
+    background-color: var(--accent-color-hover);
 }
