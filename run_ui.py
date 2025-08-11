@@ -8,6 +8,7 @@ import sys
 from io import StringIO
 import webbrowser
 from threading import Timer
+from queue import Queue
 
 app = Flask(__name__)
 # MODIFIED: Allow for larger messages if screenshots are sent
@@ -25,12 +26,15 @@ sys.stderr = log_stream
 # --- Agent Task Management ---
 agent_thread = None
 agent_task = None
+clarification_request_queue = Queue()
+clarification_response_queue = Queue()
 
-def run_agent_in_background(objective):
+def run_agent_in_background(objective, req_q, res_q):
     """Runs the agent task in a separate thread."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(run_agent_task(objective))
+    # Pass the queues to the agent task
+    loop.run_until_complete(run_agent_task(objective, clarification_request_queue=req_q, clarification_response_queue=res_q))
     loop.close()
 
 # --- Flask Routes ---
@@ -50,7 +54,7 @@ def handle_connect():
 
 @socketio.on('start_agent')
 def handle_start_agent(json_data):
-    global agent_thread
+    global agent_thread, clarification_request_queue, clarification_response_queue
     objective = json_data.get('objective')
     if not objective:
         emit('error', {'message': 'Objective is required.'})
@@ -63,9 +67,30 @@ def handle_start_agent(json_data):
     print(f"Received start request for objective: {objective}")
     emit('response', {'data': f'Starting agent with objective: {objective}'})
 
+    # Clear any leftover items in queues from previous runs
+    while not clarification_request_queue.empty():
+        clarification_request_queue.get()
+    while not clarification_response_queue.empty():
+        clarification_response_queue.get()
+
     # Start the agent in a new thread
-    agent_thread = threading.Thread(target=run_agent_in_background, args=(objective,))
+    agent_thread = threading.Thread(target=run_agent_in_background, args=(objective, clarification_request_queue, clarification_response_queue))
     agent_thread.start()
+
+@socketio.on('clarification_response')
+def handle_clarification_response(json_data):
+    """Handles the user's response to a clarification request."""
+    print(f"Received clarification response: {json_data}")
+    clarification_response_queue.put(json_data)
+
+def stream_clarification_requests():
+    """Periodically checks for clarification requests from the agent and sends them to the UI."""
+    while True:
+        if not clarification_request_queue.empty():
+            request = clarification_request_queue.get()
+            socketio.emit('clarification_request', request)
+            print(f"Sent clarification request to client: {request}")
+        socketio.sleep(1) # Non-blocking sleep
 
 def stream_logs():
     """Periodically sends new log content to the client."""
@@ -83,8 +108,9 @@ def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
 
 if __name__ == "__main__":
-    # Start the log streaming background task
+    # Start the background tasks
     socketio.start_background_task(stream_logs)
+    socketio.start_background_task(stream_clarification_requests)
 
     print("Starting web server with SocketIO...")
     # Open the web browser 1 second after starting the server
