@@ -19,6 +19,10 @@ VISION_MODEL = "gemma:7b"
 # -- Low Memory Mode Configuration --
 # Set to True to use smaller models to reduce memory usage
 LOW_MEMORY_MODE = True
+
+# -- Browser Configuration --
+# Set to True to run the browser in headless mode (no GUI)
+HEADLESS_BROWSER = False
 # Models to use in low memory mode
 LOW_MEMORY_MAIN_MODEL = "mistral:7b"
 LOW_MEMORY_SUPERVISOR_MODEL = "mistral:7b"
