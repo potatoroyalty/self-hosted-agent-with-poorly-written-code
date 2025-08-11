@@ -203,7 +203,7 @@ Labeled elements provided:
         response = await self.vision_model.agenerate(messages=messages)
         return response.generations[0].message.content.strip()
 
-    async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image):
+    async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image, working_memory):
         prompt = f"""
         {AGENT_CONSTITUTION}
 
@@ -216,6 +216,10 @@ Labeled elements provided:
 
         # Factual Description of the Current Screen
         "{page_description}"
+
+        # Working Memory
+        You have access to a working memory that contains information you have gathered.
+        {working_memory}
 
         # History of Past Steps (for context)
         <history>{history}</history>

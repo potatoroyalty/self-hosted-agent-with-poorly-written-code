@@ -2,6 +2,7 @@ from typing import Type, List, Dict, Any
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from browser_controller import BrowserController
+from working_memory import WorkingMemory
 import asyncio
 
 # Initialize BrowserController globally or pass it during agent initialization
@@ -11,6 +12,12 @@ import asyncio
 
 class BrowserTool(BaseTool):
     controller: BrowserController
+
+    class Config:
+        arbitrary_types_allowed = True
+
+class MemoryTool(BaseTool):
+    memory: WorkingMemory
 
     class Config:
         arbitrary_types_allowed = True
@@ -277,3 +284,20 @@ class NavigateToURLTool(BrowserTool):
             await asyncio.sleep(1) # Small delay to allow page to settle
 
         return f"Successfully navigated to {url} by following a known path."
+
+class UpsertInMemoryInput(BaseModel):
+    key: str = Field(description="The key to add or update in the working memory.")
+    value: str = Field(description="The value to associate with the key.")
+
+class UpsertInMemoryTool(MemoryTool):
+    name: str = "upsert_in_memory"
+    description: str = "Adds or updates a key-value pair in the agent's working memory. Use this to remember information that you might need later in the task."
+    args_schema: Type[BaseModel] = UpsertInMemoryInput
+
+    def _run(self, key: str, value: str) -> str:
+        self.memory.upsert(key, value)
+        return f"Successfully upserted value for key '{key}' in working memory."
+
+    async def _arun(self, key: str, value: str) -> str:
+        self.memory.upsert(key, value)
+        return f"Successfully upserted value for key '{key}' in working memory."
