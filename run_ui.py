@@ -6,6 +6,8 @@ from main import run_agent_task
 import threading
 import sys
 from io import StringIO
+import webbrowser
+from threading import Timer
 
 app = Flask(__name__)
 # MODIFIED: Allow for larger messages if screenshots are sent
@@ -76,11 +78,18 @@ def stream_logs():
             last_position = log_stream.tell()
         socketio.sleep(1) # Non-blocking sleep
 
+def open_browser():
+    """Opens the default web browser to the application's URL."""
+    webbrowser.open_new("http://127.0.0.1:5000")
+
 if __name__ == "__main__":
     # Start the log streaming background task
     socketio.start_background_task(stream_logs)
 
     print("Starting web server with SocketIO...")
+    # Open the web browser 1 second after starting the server
+    Timer(1, open_browser).start()
+
     # Using host='0.0.0.0' makes the server accessible from the local network
     # allow_unsafe_werkzeug is required for running in this threaded mode
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
