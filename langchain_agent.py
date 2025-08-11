@@ -241,3 +241,39 @@ class CreateMacroTool(BrowserTool):
 
         await self.controller.agent.create_macro(objective)
         return f"Successfully initiated the creation of a macro for the objective: '{objective}'. The new macro will be available for use in the next run."
+
+class NavigateToURLInput(BaseModel):
+    url: str = Field(description="The destination URL to navigate to.")
+
+class NavigateToURLTool(BrowserTool):
+    name: str = "navigate_to_url"
+    description: str = "Navigates to a URL using the most efficient path known. Use this to go to a page that you have likely visited before."
+    args_schema: Type[BaseModel] = NavigateToURLInput
+
+    def _run(self, url: str) -> str:
+        """Use the asynchronous version of the tool."""
+        raise NotImplementedError("This tool does not support synchronous execution.")
+
+    async def _arun(self, url: str) -> str:
+        if not self.controller.website_graph:
+            return "Error: Website graph is not available."
+
+        current_url = self.controller.page.url
+        path = self.controller.website_graph.find_path(current_url, url)
+
+        if not path:
+            return f"No known path from {current_url} to {url}. Consider using go_to_page instead."
+
+        print(f"[INFO] Found path to {url}. Executing sequence of {len(path)} actions.")
+        for i, action in enumerate(path):
+            print(f"  - Action {i+1}/{len(path)}: {action}")
+            if action["type"] == "goto":
+                await self.controller.goto_url(action["url"])
+            elif action["type"] == "click":
+                await self.controller.execute_action({
+                    "action_type": "click",
+                    "details": {"element_label": action["element_label"]}
+                })
+            await asyncio.sleep(1) # Small delay to allow page to settle
+
+        return f"Successfully navigated to {url} by following a known path."

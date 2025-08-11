@@ -5,12 +5,13 @@ from datetime import datetime
 import importlib.util
 from ai_model import AIModel
 from browser_controller import BrowserController
+from website_graph import WebsiteGraph
 from langchain_agent import (
     BrowserTool, MacroTool,
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
-    CreateMacroTool
+    CreateMacroTool, NavigateToURLTool
 )
 from vision_tools import FindElementWithVisionTool
 from langchain.agents import AgentExecutor, create_react_agent
@@ -33,8 +34,9 @@ class WebAgent:
         
         self.run_folder = f"runs/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
+        self.website_graph = WebsiteGraph(graph_file_path=config.GRAPH_FILE_PATH)
         self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
-        self.browser = BrowserController(run_folder=self.run_folder, agent=self)
+        self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph)
 
         # Added robust encoding and error handling
         if os.path.exists(self.memory_file):
@@ -52,6 +54,7 @@ class WebAgent:
         self.tools = [
             FindElementWithVisionTool(browser=self.browser, ai_model=self.ai_model),
             GoToPageTool(controller=self.browser),
+            NavigateToURLTool(controller=self.browser),
             ClickElementTool(controller=self.browser),
             TypeTextTool(controller=self.browser),
             GetElementDetailsTool(controller=self.browser),
@@ -249,6 +252,7 @@ Begin!
             print(f"[INFO] Saving session log to {session_log_path}")
             f.write("\n".join(self.session_memory))
         
+        self.website_graph.save_graph()
         critique = await self.ai_model.get_self_critique("\n".join(self.session_memory))
 
         with open(self.critique_file, 'w', encoding='utf-8', errors='ignore') as f:

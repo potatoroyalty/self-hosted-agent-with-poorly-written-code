@@ -7,18 +7,20 @@ from typing import List, Tuple, Dict, Optional, Any
 from playwright.async_api import async_playwright, Browser, Page, ElementHandle
 from PIL import Image, ImageDraw, ImageFont
 import config
+from website_graph import WebsiteGraph
 
 class BrowserController:
     """
     A controller for managing a Playwright browser instance,
     handling page interactions, and annotating screenshots for an AI agent.
     """
-    def __init__(self, run_folder: str, agent=None):
+    def __init__(self, run_folder: str, agent=None, website_graph: Optional[WebsiteGraph] = None):
         self.browser: Browser | None = None
         self.page: Page | None = None
         self.playwright = None
         self.run_folder = run_folder
         self.agent = agent
+        self.website_graph = website_graph
         self.labeled_elements: List[ElementHandle] = []
         self.current_screenshot_bytes: Optional[bytes] = None
         self.preprocessor_script: Optional[str] = None
@@ -59,7 +61,16 @@ class BrowserController:
     async def goto_url(self, url: str):
         """Navigates the page to the specified URL."""
         page = self._get_page()
+        from_url = page.url
         await page.goto(url if "://" in url else "http://" + url)
+        to_url = page.url
+        page_title = await page.title()
+
+        if self.website_graph:
+            self.website_graph.add_page(from_url)
+            self.website_graph.add_page(to_url, page_title=page_title)
+            action = {"type": "goto", "url": url}
+            self.website_graph.add_edge(from_url, to_url, action)
 
     async def get_snapdom(self) -> Optional[Dict[str, Any]]:
         """
@@ -238,7 +249,19 @@ class BrowserController:
                 element = self.labeled_elements[element_index]
 
                 if action_type == "click":
+                    page = self._get_page()
+                    from_url = page.url
                     await element.click(timeout=5000)
+                    await page.wait_for_load_state('networkidle', timeout=5000)
+                    to_url = page.url
+
+                    if from_url != to_url and self.website_graph:
+                        page_title = await page.title()
+                        self.website_graph.add_page(from_url)
+                        self.website_graph.add_page(to_url, page_title=page_title)
+                        action = {"type": "click", "element_label": element_label}
+                        self.website_graph.add_edge(from_url, to_url, action)
+
                     return True, f"Clicked element {element_label}."
                 
                 elif action_type == "type":
