@@ -41,6 +41,21 @@ class BrowserController:
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(headless=config.HEADLESS_BROWSER)
         self.page = await self.browser.new_page()
+        # Automatically inject scripts on every new page load
+        self.page.on("load", self._on_page_load)
+
+    async def _on_page_load(self, page):
+        """Callback for the page 'load' event to inject scripts."""
+        print("[INFO] Page loaded. Injecting bridge scripts...")
+        try:
+            # First, inject the Socket.IO client library from a CDN
+            await page.add_script_tag(url="https://cdn.socket.io/4.7.5/socket.io.min.js")
+            # Then, inject our custom bridge script
+            await page.add_script_tag(path="bridge.js")
+            print("[INFO] Successfully injected bridge scripts.")
+        except Exception as e:
+            # This can happen on pages with strict CSP, or about:blank pages
+            print(f"[WARN] Could not inject bridge scripts: {e}")
 
     async def close(self):
         """Closes the browser and stops the Playwright instance."""

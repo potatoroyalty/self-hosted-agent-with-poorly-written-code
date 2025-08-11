@@ -11,12 +11,12 @@ from threading import Timer
 from queue import Queue
 
 # Virtual environment check
-if sys.prefix == sys.base_prefix:
-    print("[ERROR] This script is not running in a virtual environment.")
-    print("Please activate the virtual environment created by 'setup.bat' before running this script.")
-    # Use input() to pause execution in a command window
-    input("Press Enter to exit...")
-    sys.exit(1)
+# if sys.prefix == sys.base_prefix:
+#     print("[ERROR] This script is not running in a virtual environment.")
+#     print("Please activate the virtual environment created by 'setup.bat' before running this script.")
+#     # Use input() to pause execution in a command window
+#     input("Press Enter to exit...")
+#     sys.exit(1)
 
 app = Flask(__name__)
 # MODIFIED: Allow for larger messages if screenshots are sent
@@ -36,6 +36,10 @@ agent_thread = None
 agent_task = None
 clarification_request_queue = Queue()
 clarification_response_queue = Queue()
+
+# --- Recording State ---
+is_recording = False
+recorded_events = []
 
 def run_agent_in_background(objective, req_q, res_q):
     """Runs the agent task in a separate thread."""
@@ -97,6 +101,31 @@ def handle_clarification_response(json_data):
     """Handles the user's response to a clarification request."""
     print(f"Received clarification response: {json_data}")
     clarification_response_queue.put(json_data)
+
+# --- Recording Event Handlers ---
+@socketio.on('start_recording')
+def handle_start_recording():
+    global is_recording, recorded_events
+    is_recording = True
+    recorded_events = []
+    print("[INFO] Started recording user actions.")
+    emit('response', {'data': 'Recording started.'})
+
+@socketio.on('stop_recording')
+def handle_stop_recording():
+    global is_recording
+    is_recording = False
+    print("[INFO] Stopped recording user actions.")
+    # For now, just print the recorded events to the console.
+    print(f"Recorded events: {recorded_events}")
+    emit('response', {'data': f'Recording stopped. {len(recorded_events)} events captured.'})
+
+@socketio.on('record_action', namespace='/bridge')
+def handle_record_action(data):
+    """Handles an action event sent from the injected bridge script."""
+    if is_recording:
+        print(f"[REC] Received action: {data}")
+        recorded_events.append(data)
 
 def stream_clarification_requests():
     """Periodically checks for clarification requests from the agent and sends them to the UI."""

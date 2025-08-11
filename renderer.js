@@ -91,6 +91,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const recordBtn = document.getElementById('record-btn');
+    const recordingBanner = document.getElementById('recording-banner');
+    let isRecording = false;
+
+    recordBtn.addEventListener('click', () => {
+        isRecording = !isRecording; // Toggle recording state
+
+        if (isRecording) {
+            // Start recording
+            recordBtn.textContent = 'Stop Recording';
+            recordBtn.classList.add('recording');
+            recordingBanner.style.display = 'block';
+            socket.emit('start_recording');
+            console.log('Started recording.');
+        } else {
+            // Stop recording
+            recordBtn.textContent = 'Record New Script';
+            recordBtn.classList.remove('recording');
+            recordingBanner.style.display = 'none';
+            socket.emit('stop_recording');
+            console.log('Stopped recording.');
+        }
+    });
+
     socket.on('agent_finished', (data) => {
         console.log('Agent has finished its task.', data);
         loadingOverlay.style.display = 'none';
