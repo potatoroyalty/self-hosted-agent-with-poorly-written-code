@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 from browser_controller import BrowserController
 from working_memory import WorkingMemory
 import asyncio
+import threading
+from queue import Queue
 
 # Initialize BrowserController globally or pass it during agent initialization
 # For now, we'll assume it's initialized elsewhere and passed to the tool's run method
@@ -285,6 +287,57 @@ class NavigateToURLTool(BrowserTool):
 
         return f"Successfully navigated to {url} by following a known path."
 
+
+class AskUserForClarificationInput(BaseModel):
+    world_model: str = Field(description="A summary of the agent's understanding of the current state.")
+    potential_actions: List[str] = Field(description="A list of potential actions the agent is considering.")
+
+class AskUserForClarificationTool(BaseTool):
+    name: str = "ask_user_for_clarification"
+    description: str = "Asks the user for clarification when the agent is stuck or has low confidence. Presents the user with the current world model and a list of potential actions to choose from."
+    args_schema: Type[BaseModel] = AskUserForClarificationInput
+    clarification_request_queue: Queue
+    clarification_response_queue: Queue
+
+    def _run(self, world_model: str, potential_actions: List[str]) -> str:
+        """Asks the user for clarification and waits for their response."""
+        try:
+            # Unique identifier for this request
+            request_id = threading.get_ident()
+
+            # Package the request
+            request = {
+                "request_id": request_id,
+                "world_model": world_model,
+                "potential_actions": potential_actions
+            }
+
+            # Send the request to the UI thread
+            self.clarification_request_queue.put(request)
+
+            # Wait for the response from the UI thread
+            # This will block the agent's execution until the user responds
+            response = self.clarification_response_queue.get() # This assumes a 1:1 request/response flow
+
+            if response.get("request_id") != request_id:
+                # This is a fallback for a more complex scenario, for now we assume 1:1
+                return "Error: Received response for a different request."
+
+            selected_action = response.get("selected_action")
+
+            if selected_action:
+                return f"User selected the following action: {selected_action}"
+            else:
+                return "User did not select an action."
+
+        except Exception as e:
+            return f"An error occurred while asking for clarification: {e}"
+
+    async def _arun(self, world_model: str, potential_actions: List[str]) -> str:
+        # For now, we'll just use the synchronous implementation
+        # In a more advanced setup, we could use asyncio events
+        return self._run(world_model, potential_actions)
+
 class UpsertInMemoryInput(BaseModel):
     key: str = Field(description="The key to add or update in the working memory.")
     value: str = Field(description="The value to associate with the key.")
@@ -301,3 +354,4 @@ class UpsertInMemoryTool(MemoryTool):
     async def _arun(self, key: str, value: str) -> str:
         self.memory.upsert(key, value)
         return f"Successfully upserted value for key '{key}' in working memory."
+

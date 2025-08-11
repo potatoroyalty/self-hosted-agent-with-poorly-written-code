@@ -13,7 +13,7 @@ from langchain_agent import (
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
-    CreateMacroTool, NavigateToURLTool, UpsertInMemoryTool
+    CreateMacroTool, NavigateToURLTool, UpsertInMemoryTool, AskUserForClarificationTool
 )
 from vision_tools import FindElementWithVisionTool
 from langchain.agents import AgentExecutor, create_react_agent
@@ -23,9 +23,11 @@ from langchain_core.messages import HumanMessage, AIMessage
 import config
 
 class WebAgent:
-    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS):
+    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None):
         self.objective = objective
         self.start_url = start_url
+        self.clarification_request_queue = clarification_request_queue
+        self.clarification_response_queue = clarification_response_queue
         self.memory_file = memory_file
         self.critique_file = critique_file
         self.memory = []
@@ -73,6 +75,12 @@ class WebAgent:
             CreateMacroTool(controller=self.browser),
             UpsertInMemoryTool(memory=self.working_memory)
         ]
+
+        if self.clarification_request_queue and self.clarification_response_queue:
+            self.tools.append(AskUserForClarificationTool(
+                clarification_request_queue=self.clarification_request_queue,
+                clarification_response_queue=self.clarification_response_queue
+            ))
 
         # Load dynamic tools
         self.load_dynamic_tools()

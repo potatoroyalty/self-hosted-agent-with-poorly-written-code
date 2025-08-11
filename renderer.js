@@ -40,6 +40,42 @@ document.addEventListener('DOMContentLoaded', () => {
         logContainer.scrollTop = logContainer.scrollHeight;
     });
 
+    socket.on('clarification_request', (data) => {
+        console.log('Clarification request from agent:', data);
+        const container = document.getElementById('clarification-container');
+
+        // Clear previous content
+        container.innerHTML = '<h3>Agent needs your help!</h3>';
+
+        // Display the world model
+        const worldModel = document.createElement('p');
+        worldModel.textContent = data.world_model;
+        container.appendChild(worldModel);
+
+        // Display the potential actions as buttons
+        const actionList = document.createElement('ul');
+        data.potential_actions.forEach(action => {
+            const actionItem = document.createElement('li');
+            const actionButton = document.createElement('button');
+            actionButton.textContent = action;
+            actionButton.addEventListener('click', () => {
+                socket.emit('clarification_response', {
+                    request_id: data.request_id,
+                    selected_action: action
+                });
+                // Hide the container after selection
+                container.style.display = 'none';
+                container.innerHTML = '';
+            });
+            actionItem.appendChild(actionButton);
+            actionList.appendChild(actionItem);
+        });
+        container.appendChild(actionList);
+
+        // Show the container
+        container.style.display = 'block';
+    });
+
     const startBtn = document.getElementById('start-btn');
     startBtn.addEventListener('click', () => {
         const objective = document.getElementById('instruction-input').value;
