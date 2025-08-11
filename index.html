@@ -17,10 +17,10 @@
                 <ul>
                     <li><a href="#" id="view-browser-link" class="nav-link active">Browser</a></li>
                     <li><a href="#" id="view-generator-link" class="nav-link">Generator</a></li>
-                    <li><a href="#" class="nav-link-disabled">Scripts</a></li>
-                    <li><a href="#" class="nav-link-disabled">Proxies</a></li>
-                    <li><a href="#" class="nav-link-disabled">Logs</a></li>
-                    <li><a href="#" class="nav-link-disabled">Settings</a></li>
+                    <li><a href="#" id="view-scripts-link" class="nav-link">Scripts</a></li>
+                    <li><a href="#" id="view-proxies-link" class="nav-link">Proxies</a></li>
+                    <li><a href="#" id="view-logs-link" class="nav-link">Logs</a></li>
+                    <li><a href="#" id="view-settings-link" class="nav-link">Settings</a></li>
                 </ul>
             </nav>
             <div class="quick-toggles">
@@ -94,13 +94,33 @@
                     <p>// Generated script will appear here</p>
                 </div>
             </div>
+
+            <div id="scripts-view" class="view">
+                <h2>Scripts</h2>
+                <p>Scripts management will be here.</p>
+            </div>
+
+            <div id="proxies-view" class="view">
+                <h2>Proxies</h2>
+                <p>Proxies management will be here.</p>
+            </div>
+
+            <div id="logs-view" class="view">
+                <h2>Logs</h2>
+                <p>Logs will be displayed here.</p>
+            </div>
+
+            <div id="settings-view" class="view">
+                <h2>Settings</h2>
+                <p>Settings will be configured here.</p>
+            </div>
         </main>
 
         <aside class="sidebar-right">
             <div class="tabs">
                 <button class="tab-link active" onclick="openTab(event, 'live-log')">Live Log</button>
-                <button class="tab-link" onclick="openTab(event, 'inspector')" disabled>Inspector</button>
-                <button class="tab-link" onclick="openTab(event, 'task-queue')" disabled>Task Queue</button>
+                <button class="tab-link" onclick="openTab(event, 'inspector')">Inspector</button>
+                <button class="tab-link" onclick="openTab(event, 'task-queue')">Task Queue</button>
             </div>
             <div id="live-log" class="tab-content" style="display: block;">
                 <p>Live log updates will appear here...</p>
