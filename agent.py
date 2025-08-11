@@ -309,8 +309,15 @@ Begin!
             domain = self.strategy_manager.get_domain(self.start_url)
             self.strategy_manager.save_strategy(domain, self.objective, actions)
 
-        critique = await self.ai_model.get_self_critique("\n".join(self.session_memory))
+        critique = await self.ai_model.get_self_critique(self.working_memory.get_history())
 
-
-        with open(self.critique_file, 'w', encoding='utf-8', errors='ignore') as f:
-            f.write(critique)
+        # Log the critique
+        developer_suggestions_file = "developer_suggestions.log"
+        if critique.startswith("Directive for developer:"):
+            with open(developer_suggestions_file, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {critique}\n")
+            print(f"[INFO] Developer suggestion logged to {developer_suggestions_file}")
+        else:
+            with open(self.critique_file, 'w', encoding='utf-8', errors='ignore') as f:
+                f.write(critique)
+            print(f"[INFO] Agent critique logged to {self.critique_file}")
