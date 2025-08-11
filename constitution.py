@@ -94,7 +94,7 @@ Pick ONE of these tools to execute the next step in the plan:
    }
 
 3. COMPOSITE ACTIONS
-   
+
    PERFORM GOOGLE SEARCH
    {
      "tool": "perform_google_search",
@@ -108,9 +108,13 @@ Pick ONE of these tools to execute the next step in the plan:
 2. Respond with ONLY the tool JSON. No other text.
 3. Element numbers must be integers from the page description.
 4. Pick the tool that matches the FIRST step in the current plan.
+5. Include a `confidence_score` from 0.0 to 1.0.
+6. Include a `thought` explaining your reasoning for the action and confidence score.
 
 # EXAMPLE FOR CLICKING A COOKIE BANNER
 {
+  "thought": "The user wants to accept the cookies, and element 12 is the 'Accept' button. I am very confident in this action.",
+  "confidence_score": 0.95,
   "tool": "click",
   "params": {
     "element": 12

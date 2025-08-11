@@ -209,90 +209,86 @@ Begin!
         # Clear any recorded actions from a previous run
         self.strategy_callback_handler.clear_actions()
 
-        # Check for and execute a cached strategy
-        domain = self.strategy_manager.get_domain(self.start_url)
-        strategy = self.strategy_manager.find_strategy(domain, self.objective)
-        if strategy:
-            print(f"[INFO] Found cached strategy for domain '{domain}' and objective '{self.objective}'. Executing strategy.")
-            for action in strategy:
-                tool_name = action['tool_name']
-                tool_input = action['tool_input']
-                matching_tool = next((t for t in self.tools if t.name == tool_name), None)
-                if matching_tool:
-                    try:
-                        # The tool's arun method expects the arguments to be passed as keyword arguments
-                        if isinstance(tool_input, dict):
-                            result = await matching_tool.arun(**tool_input)
-                        else:
-                            # Some tools might take a single string argument
-                            result = await matching_tool.arun(tool_input)
-                        print(f"[INFO] Executed action '{tool_name}' with input {tool_input}. Result: {result}")
-                        self.session_memory.append(f"Strategy Action: {tool_name}, Input: {tool_input}, Result: {result}")
-                    except Exception as e:
-                        error_message = f"An unexpected error occurred during strategy execution of tool {tool_name}: {e}"
-                        print(f"[ERROR] {error_message}")
-                        self.session_memory.append(f"Error: {error_message}")
-                        break # Stop strategy execution on error
-                else:
-                    print(f"[ERROR] Tool '{tool_name}' from strategy not found.")
-                    break
+        # Main loop
+        for i in range(self.max_steps):
+            print(f"--- Step {i+1}/{self.max_steps} ---")
 
-            print("\n[INFO] Agent run has finished (strategy executed).")
-            return
+            # 1. Observe the page
+            encoded_image, page_description = await self.browser.observe_and_annotate(step=i)
 
-        # Sanitize the objective to find a potential macro name
-        sanitized_objective = re.sub(r'\s+', '_', self.objective)
-        sanitized_objective = re.sub(r'\W+', '', sanitized_objective).lower()
-        macro_tool_name = f"{sanitized_objective}_macro"
+            # 2. Get strategic plan
+            strategic_plan = await self.ai_model.get_strategic_plan(
+                self.objective,
+                history=self.working_memory.get_history(),
+                page_description=page_description,
+                self_critique=self.self_critique
+            )
+            self.working_memory.add_reflection(strategic_plan.get("reflection", ""))
+            self.working_memory.add_world_model(strategic_plan.get("world_model", ""))
+            self.working_memory.add_plan(strategic_plan.get("plan", []))
 
-        # Check if a macro for this objective exists
-        matching_macro = None
-        for tool in self.tools:
-            if tool.name == macro_tool_name:
-                matching_macro = tool
+            plan = strategic_plan.get("plan", [])
+            if not plan:
+                print("[INFO] Plan is empty. Finishing run.")
                 break
 
-        if matching_macro:
-            print(f"[INFO] Found matching macro '{macro_tool_name}'. Executing macro.")
-            try:
-                # The arun method of the macro tool will execute the sequence of actions
-                result = await matching_macro.arun({}) # Pass empty dict for args if no args are expected
-                self.last_action_result = result
-                self.working_memory.upsert("last_action_result", self.last_action_result)
-                print(f"[INFO] Macro execution finished. Result: {result}")
-            except Exception as e:
-                error_message = f"An unexpected error occurred during macro execution: {e}"
-                print(f"[ERROR] {error_message}")
-                self.working_memory.upsert("error", error_message)
+            # 3. Execute tactical actions
+            for step in plan:
+                # Get tactical action
+                action_json = await self.ai_model.get_tactical_action(
+                    plan=[step],
+                    encoded_image=encoded_image,
+                    page_description=page_description
+                )
 
-            # After executing the macro, the run is considered complete for this step.
-            print("\n[INFO] Agent run has finished (macro executed).")
-            return # Exit the run method
+                thought = action_json.get("thought", "")
+                confidence_score = action_json.get("confidence_score", 0.0)
+                tool_name = action_json.get("tool")
+                params = action_json.get("params", {})
 
-        # Initial observation to populate labeled_elements in browser_controller
-        await self.browser.observe_and_annotate(step=0)
+                print(f"[ACTION] Tool: {tool_name}, Params: {params}, Confidence: {confidence_score}, Thought: {thought}")
 
-        # Determine which agent to use based on last_action_result
-        if "error" in self.last_action_result.lower() or "failed" in self.last_action_result.lower():
-            print("[INFO] Escalating to main model due to previous error/failure.")
-            current_agent_executor = self.agent_executor
-        else:
-            print("[INFO] Using fast model for routine task.")
-            current_agent_executor = self.fast_agent_executor
+                # Adaptive Risk-Taking
+                if confidence_score < 0.6:
+                    print(f"[WARN] Low confidence score ({confidence_score}). Asking user for clarification.")
+                    clarification_tool = next((t for t in self.tools if t.name == "ask_user_for_clarification"), None)
+                    if clarification_tool:
+                        user_instruction = await clarification_tool.arun(
+                            f"I am not confident about the next action. My thought process is: '{thought}'. What should I do instead?"
+                        )
+                        # The user response will be handled in the next loop iteration
+                        self.last_action_result = f"User provided new instruction: {user_instruction}"
+                        self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+                        continue # Skip to next iteration
+                    else:
+                        print("[ERROR] AskUserForClarificationTool not found. Cannot ask for help.")
+                        self.last_action_result = "Error: Low confidence and clarification tool is not available."
+                        break # Exit plan execution
 
-        try:
-            result = await current_agent_executor.ainvoke({
-                "objective": self.objective,
-                "last_action_result": self.last_action_result,
-                "self_critique": self.self_critique,
-                "working_memory": self.working_memory.to_json(),
-            })
-            self.last_action_result = result.get("output", "Agent finished.")
-            self.working_memory.upsert("last_action_result", self.last_action_result)
-        except Exception as e:
-            error_message = f"An unexpected error occurred during agent execution: {e}"
-            print(f"[ERROR] {error_message}")
-            self.working_memory.upsert("error", error_message)
+                elif confidence_score < 0.9:
+                    print(f"[WARN] Medium confidence score ({confidence_score}). Proceeding with caution.")
+
+                # Execute action
+                tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
+                if tool_to_execute:
+                    try:
+                        result = await tool_to_execute.arun(**params)
+                        self.last_action_result = result
+                        print(f"[INFO] Action '{tool_name}' executed successfully. Result: {result}")
+                    except Exception as e:
+                        error_message = f"An unexpected error occurred during tool execution: {e}"
+                        print(f"[ERROR] {error_message}")
+                        self.last_action_result = error_message
+                else:
+                    self.last_action_result = f"Error: Tool '{tool_name}' not found."
+                    print(f"[ERROR] {self.last_action_result}")
+
+                self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+
+                # If the action was to finish, break the outer loop
+                if tool_name == "finish":
+                    print("[INFO] 'finish' action called. Ending run.")
+                    return
 
         print("\n[INFO] Agent run has finished.")
 
