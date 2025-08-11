@@ -43,18 +43,42 @@ This entire process is supported by a set of core components that manage state, 
 
 ## Getting Started
 
+We provide a simple setup script for Windows users and manual installation instructions for macOS, Linux, and advanced users.
+
+### Windows Quickstart (Recommended)
+
+If you are on Windows, you can get set up in just a few clicks.
+
+1.  **Prerequisites**:
+    *   **Install Ollama**: You must have [Ollama](https://ollama.com/) installed and running. Follow the instructions on the [Ollama website](https://ollama.com/).
+    *   **Install Python**: If you don't have Python, download it from the [official Python website](https://www.python.org/downloads/). **Important**: During installation, make sure to check the box that says "Add Python to PATH".
+
+2.  **Download the Project**:
+    *   Click the green "Code" button on the GitHub page and select "Download ZIP".
+    *   Extract the contents of the ZIP file to a folder on your computer.
+
+3.  **Run the Setup Script**:
+    *   Open the project folder you just extracted.
+    *   Find the `setup.bat` file and double-click it. A command prompt window will appear and install the required dependencies. Wait for it to finish.
+
+4.  **Run the Application**:
+    *   Once the setup is complete, find the `run_ui.bat` file and double-click it.
+    *   This will start the web server and open the application in your browser.
+
+### Manual Installation (macOS, Linux, Advanced Users)
+
 Follow these steps to get the agent running on your local machine.
 
-### 1. Prerequisites
+#### 1. Prerequisites
 
-This agent requires [Ollama](https://ollama.com/) to be running on your machine. Ollama provides the AI models that the agent uses for its reasoning and vision capabilities.
+*   **Install Ollama**: This agent requires [Ollama](https://ollama.com/) to be running on your machine. Ollama provides the AI models that the agent uses for its reasoning and vision capabilities.
+    1.  **Download and Install Ollama**: Follow the instructions on the [Ollama website](https://ollama.com/) to download and install it for your operating system.
+    2.  **Run Ollama**: Make sure the Ollama application is running before you start the agent.
+*   **Install Python**: You will need Python 3.8 or newer. You can download it from the [official Python website](https://www.python.org/downloads/).
 
-1.  **Download and Install Ollama**: Follow the instructions on the [Ollama website](https://ollama.com/) to download and install it for your operating system.
-2.  **Run Ollama**: Make sure the Ollama application is running before you start the agent.
+#### 2. Installation
 
-### 2. Installation
-
-First, clone the repository to your local machine.
+First, clone or download the repository to your local machine.
 
 ```bash
 git clone <repository-url>
@@ -64,14 +88,17 @@ cd <repository-directory>
 Next, install the required Python dependencies. It is recommended to use a virtual environment.
 
 ```bash
+# Create and activate a virtual environment (optional but recommended)
 python -m venv venv
 source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 The first time you run the agent, Playwright will also install the necessary browser drivers.
 
-### 3. Download AI Models
+#### 3. Download AI Models
 
 The agent will attempt to download the required AI models automatically if they are not already available locally. The default models are configured for a low-memory footprint.
 
@@ -144,6 +171,15 @@ While command-line arguments can override some of these settings for a single ru
 *   `LOW_MEMORY_MODE`: Set to `True` by default to use smaller, less resource-intensive models. Set this to `False` if you have a powerful machine and want to use larger models.
 *   `HEADLESS_BROWSER`: Set to `True` to run the browser in the background without a visible GUI window. Set to `False` (the default) to watch the agent work in real-time.
 *   `MAIN_MODEL`, `VISION_MODEL`, etc.: You can change the default Ollama models used by the agent here.
+
+## A Note on Frontend Development
+
+This project uses a simple frontend built with vanilla HTML, CSS, and JavaScript. It does **not** use a package manager like `npm` or a build step (e.g., Webpack, Vite).
+
+*   JavaScript dependencies (like Socket.IO) are loaded via a Content Delivery Network (CDN) in `index.html`.
+*   Local JavaScript files (`renderer.js`, `theme.js`) are included directly via `<script>` tags.
+
+There is no need to run `npm install` or similar commands. All necessary files are already included in the repository.
 
 ## Advanced Concepts
 
