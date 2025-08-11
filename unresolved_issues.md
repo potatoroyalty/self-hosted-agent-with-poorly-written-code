@@ -83,13 +83,6 @@ This section lists miscellaneous findings that could be bugs or areas for minor 
 
 ---
 
-### 3.1. Missing `arial.ttf` Font File
-- **File:** `browser_controller.py` (line 155)
-- **Description:** The `observe_and_annotate` method attempts to load the "arial.ttf" font file to draw labels on screenshots. This file is not present in the repository, causing the application to fall back to a default font, which may have a different appearance or size.
-- **Suggested Action:** Either add the `arial.ttf` font file to the repository or update the code to consistently use a modern, freely available font and include it with the project.
-
----
-
 ### 3.2. Incomplete Async Method Implementations
 - **File:** `langchain_agent.py` (lines 255, 271, 321)
 - **Description:** Several tools (e.g., `CreateMacroTool`, `NavigateToURLTool`) have synchronous `_run` methods that are not implemented and immediately raise an error. The `AskUserForClarificationTool`'s async `_arun` method simply calls its synchronous counterpart, with a comment noting it's a temporary solution.

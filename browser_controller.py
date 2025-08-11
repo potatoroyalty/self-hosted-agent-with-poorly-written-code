@@ -147,10 +147,7 @@ class BrowserController:
         img = Image.open(io.BytesIO(screenshot_bytes))
         draw = ImageDraw.Draw(img)
         font_size = 18
-        try:
-            font = ImageFont.truetype("arial.ttf", font_size)
-        except IOError:
-            font = ImageFont.load_default(size=font_size)
+        font = ImageFont.load_default(size=font_size)
 
         labeled_elements = []
         for i, (element, box) in enumerate(elements_to_label):
