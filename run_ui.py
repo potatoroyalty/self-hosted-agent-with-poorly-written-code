@@ -109,6 +109,8 @@ def handle_start_recording():
     is_recording = True
     recorded_events = []
     print("[INFO] Started recording user actions.")
+    # Notify the bridge to start recording
+    socketio.emit('start_recording_bridge', namespace='/bridge')
     emit('response', {'data': 'Recording started.'})
 
 @socketio.on('stop_recording')
@@ -116,6 +118,8 @@ def handle_stop_recording():
     global is_recording
     is_recording = False
     print("[INFO] Stopped recording user actions.")
+    # Notify the bridge to stop recording
+    socketio.emit('stop_recording_bridge', namespace='/bridge')
     # For now, just print the recorded events to the console.
     print(f"Recorded events: {recorded_events}")
     emit('response', {'data': f'Recording stopped. {len(recorded_events)} events captured.'})
@@ -124,8 +128,25 @@ def handle_stop_recording():
 def handle_record_action(data):
     """Handles an action event sent from the injected bridge script."""
     if is_recording:
-        print(f"[REC] Received action: {data}")
         recorded_events.append(data)
+
+        # Format the event into a user-friendly string for the live log
+        event_type = data.get('type', 'unknown').upper()
+        selector = data.get('selector', 'N/A')
+        value = data.get('value', '')
+
+        if event_type == 'CLICK':
+            log_message = f"CLICK on element '{selector}'"
+        elif event_type == 'INPUT':
+            log_message = f"INPUT text '{value}' into element '{selector}'"
+        else:
+            log_message = f"Captured {event_type} on {selector}"
+
+        # Also print to the server console for debugging
+        print(f"[REC] {log_message}")
+
+        # Emit the formatted message to the UI's live log
+        socketio.emit('log_update', {'data': f"[USER ACTION] {log_message}"})
 
 def stream_clarification_requests():
     """Periodically checks for clarification requests from the agent and sends them to the UI."""
