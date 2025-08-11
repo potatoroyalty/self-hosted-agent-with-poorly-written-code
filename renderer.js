@@ -20,6 +20,7 @@ function openTab(evt, tabName) {
 // Handles view switching in the main content area
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
+    const loadingOverlay = document.getElementById('loading-overlay');
 
     socket.on('connect', () => {
         console.log('Connected to WebSocket server!');
@@ -42,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('clarification_request', (data) => {
         console.log('Clarification request from agent:', data);
+        // If we get a clarification request, the agent is clearly not "done"
+        loadingOverlay.style.display = 'none';
         const container = document.getElementById('clarification-container');
 
         // Clear previous content
@@ -81,10 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const objective = document.getElementById('instruction-input').value;
         if (objective) {
             console.log('Start button clicked with objective:', objective);
+            loadingOverlay.style.display = 'flex';
             socket.emit('start_agent', { objective: objective });
         } else {
-            alert("Please enter an objective in the generator view.");
+            alert("Please enter an objective.");
         }
+    });
+
+    socket.on('agent_finished', (data) => {
+        console.log('Agent has finished its task.', data);
+        loadingOverlay.style.display = 'none';
     });
 
     const views = document.querySelectorAll('.view');
@@ -126,6 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
     generatorLink.addEventListener('click', (e) => {
         e.preventDefault();
         switchView(generatorView, generatorLink);
+    });
+
+    // Add event listeners to disabled links to prevent navigation
+    document.querySelectorAll('.nav-link-disabled').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+        });
     });
 
     // Set the initial view
