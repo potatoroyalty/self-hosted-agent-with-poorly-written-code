@@ -378,12 +378,20 @@ Labeled elements provided:
             if not json_match:
                 raise ValueError("No valid JSON action found")
             json_str = json_match.group(1) or json_match.group(2)
-            return json.loads(json_str.strip())
+            parsed_json = json.loads(json_str.strip())
+
+            # Set default confidence score if not provided
+            if "confidence_score" not in parsed_json:
+                parsed_json["confidence_score"] = 1.0
+                print("[WARNING] 'confidence_score' not found in AI response. Defaulting to 1.0.")
+
+            return parsed_json
         except Exception as e:
             print(f"[ERROR] Failed to parse tactical action: {e}")
             return {
-                "action_type": "pause_for_user",
-                "details": {"instruction_to_user": "Failed to generate valid action. Will retry."}
+                "tool": "pause_for_user",
+                "params": {"instruction_to_user": "Failed to generate valid action. Will retry."},
+                "confidence_score": 0.0
             }
 
     async def generate_macro_script(self, objective: str, tool_definitions: str, tool_name: str, class_name: str) -> str:

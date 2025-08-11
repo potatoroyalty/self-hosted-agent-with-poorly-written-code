@@ -11,7 +11,7 @@ from langchain_agent import (
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
-    CreateMacroTool, NavigateToURLTool
+    CreateMacroTool, NavigateToURLTool, AskUserTool
 )
 from vision_tools import FindElementWithVisionTool
 from langchain.agents import AgentExecutor, create_react_agent
@@ -66,45 +66,14 @@ class WebAgent:
             PerformGoogleSearchTool(controller=self.browser),
             WriteFileTool(),
             ExecuteScriptTool(),
-            CreateMacroTool(controller=self.browser)
+            CreateMacroTool(controller=self.browser),
+            AskUserTool()
         ]
 
         # Load dynamic tools
         self.load_dynamic_tools()
 
-        # Initialize LangChain agent
-        prompt = PromptTemplate.from_template("""
-You are a web browsing agent. Your goal is to complete the objective.
-
-Objective: {objective}
-
-Previous Action Result: {last_action_result}
-
-Self-Critique from previous runs: {self_critique}
-
-Use the following format:
-
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Here are the tools you can use:
-{tools}
-
-Begin!
-
-{agent_scratchpad}
-""")
-
-        self.fast_agent = create_react_agent(self.ai_model.fast_model, self.tools, prompt)
-        self.fast_agent_executor = AgentExecutor(agent=self.fast_agent, tools=self.tools, verbose=True, handle_parsing_errors=True)
-
-        self.main_agent = create_react_agent(self.ai_model.main_model, self.tools, prompt)
-        self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True, handle_parsing_errors=True)
+        # The agent's logic is now in the run method.
 
     def get_tool_definitions(self):
         return "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
@@ -219,30 +188,55 @@ Begin!
             print("\n[INFO] Agent run has finished (macro executed).")
             return # Exit the run method
 
-        # Initial observation to populate labeled_elements in browser_controller
-        await self.browser.observe_and_annotate(step=0)
+        for step in range(self.max_steps):
+            print(f"--- Step {step + 1}/{self.max_steps} ---")
 
-        # Determine which agent to use based on last_action_result
-        if "error" in self.last_action_result.lower() or "failed" in self.last_action_result.lower():
-            print("[INFO] Escalating to main model due to previous error/failure.")
-            current_agent_executor = self.agent_executor
-        else:
-            print("[INFO] Using fast model for routine task.")
-            current_agent_executor = self.fast_agent_executor
+            encoded_image, page_description = await self.browser.observe_and_annotate(step=step)
 
-        try:
-            result = await current_agent_executor.ainvoke({
-                "objective": self.objective,
-                "last_action_result": self.last_action_result,
-                "self_critique": self.self_critique,
-                
-            })
-            self.last_action_result = result.get("output", "Agent finished.")
-            self.session_memory.append(f"Final Result: {self.last_action_result}")
-        except Exception as e:
-            error_message = f"An unexpected error occurred during agent execution: {e}"
-            print(f"[ERROR] {error_message}")
-            self.session_memory.append(f"Error: {error_message}")
+            plan_response = await self.ai_model.get_strategic_plan(
+                objective=self.objective,
+                history="\n".join(self.session_memory),
+                page_description=page_description,
+                self_critique=self.self_critique
+            )
+
+            action_response = await self.ai_model.get_tactical_action(
+                plan=plan_response,
+                encoded_image=encoded_image,
+                page_description=page_description
+            )
+
+            confidence_score = action_response.get("confidence_score", 1.0)
+
+            if confidence_score < 0.6:
+                print(f"[INFO] Low confidence score ({confidence_score}). Asking for user clarification.")
+                ask_user_tool = AskUserTool()
+                self.last_action_result = await ask_user_tool._arun(question=f"I am not confident in my next action. My plan is: {plan_response['plan']}. My proposed action is: {action_response}. What should I do?")
+                self.session_memory.append(f"User Clarification: {self.last_action_result}")
+                continue
+
+            if confidence_score < 0.9:
+                print(f"[INFO] Medium confidence score ({confidence_score}). Proceeding with caution.")
+
+            tool_name = action_response.get("tool")
+            tool_params = action_response.get("params", {})
+
+            tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
+
+            if tool_to_execute:
+                try:
+                    self.last_action_result = await tool_to_execute._arun(**tool_params)
+                    self.session_memory.append(f"Action: {tool_name}, Params: {tool_params}, Result: {self.last_action_result}")
+                except Exception as e:
+                    self.last_action_result = f"Error executing tool {tool_name}: {e}"
+                    self.session_memory.append(f"Action: {tool_name}, Params: {tool_params}, Result: {self.last_action_result}")
+            else:
+                self.last_action_result = f"Tool '{tool_name}' not found."
+                self.session_memory.append(f"Action: {tool_name}, Result: {self.last_action_result}")
+
+            if tool_name == "finish":
+                print("[INFO] 'finish' tool called. Ending run.")
+                break
 
         print("\n[INFO] Agent run has finished.")
 

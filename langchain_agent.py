@@ -277,3 +277,22 @@ class NavigateToURLTool(BrowserTool):
             await asyncio.sleep(1) # Small delay to allow page to settle
 
         return f"Successfully navigated to {url} by following a known path."
+
+
+class AskUserInput(BaseModel):
+    question: str = Field(description="The question to ask the user.")
+
+class AskUserTool(BaseTool):
+    name: str = "ask_user"
+    description: str = "Asks the user for clarification or input. Use this when you are uncertain about the next step."
+    args_schema: Type[BaseModel] = AskUserInput
+
+    def _run(self, question: str) -> str:
+        print(f"[USER QUERY] {question}")
+        user_response = input("Your response: ")
+        return user_response
+
+    async def _arun(self, question: str) -> str:
+        print(f"[USER QUERY] {question}")
+        user_response = await asyncio.to_thread(input, "Your response: ")
+        return user_response

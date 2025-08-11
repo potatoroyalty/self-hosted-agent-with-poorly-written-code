@@ -108,12 +108,14 @@ Pick ONE of these tools to execute the next step in the plan:
 2. Respond with ONLY the tool JSON. No other text.
 3. Element numbers must be integers from the page description.
 4. Pick the tool that matches the FIRST step in the current plan.
+5. Include a `confidence_score` from 0.0 to 1.0, representing your confidence in the action.
 
 # EXAMPLE FOR CLICKING A COOKIE BANNER
 {
   "tool": "click",
   "params": {
     "element": 12
-  }
+  },
+  "confidence_score": 0.95
 }
 """
