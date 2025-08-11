@@ -191,6 +191,7 @@ Begin!
                     print(f"[ERROR] Failed to load dynamic tool {tool_name}: {e}")
 
     async def run(self):
+        await self.ai_model.generate_and_set_dynamic_constitutions(self.objective)
         await self.browser.start()
         await self.browser.goto_url(self.start_url)
 
