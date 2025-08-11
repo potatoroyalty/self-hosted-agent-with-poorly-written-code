@@ -19,6 +19,38 @@ function openTab(evt, tabName) {
 
 // Handles view switching in the main content area
 document.addEventListener('DOMContentLoaded', () => {
+    const socket = io();
+
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket server!');
+    });
+
+    socket.on('response', (data) => {
+        console.log('Message from server:', data);
+        const logContainer = document.getElementById('live-log');
+        logContainer.innerHTML += `<p>${data.data}</p>`;
+    });
+
+    socket.on('log_update', (data) => {
+        const logContainer = document.getElementById('live-log');
+        // Sanitize the data to prevent HTML injection
+        const sanitizedData = data.data.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        logContainer.innerHTML += `<p>${sanitizedData}</p>`;
+        // Scroll to the bottom of the log
+        logContainer.scrollTop = logContainer.scrollHeight;
+    });
+
+    const startBtn = document.getElementById('start-btn');
+    startBtn.addEventListener('click', () => {
+        const objective = document.getElementById('instruction-input').value;
+        if (objective) {
+            console.log('Start button clicked with objective:', objective);
+            socket.emit('start_agent', { objective: objective });
+        } else {
+            alert("Please enter an objective in the generator view.");
+        }
+    });
+
     const views = document.querySelectorAll('.view');
     const navLinks = document.querySelectorAll('.nav-link');
 
