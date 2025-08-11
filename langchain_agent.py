@@ -355,3 +355,16 @@ class UpsertInMemoryTool(MemoryTool):
         self.memory.upsert(key, value)
         return f"Successfully upserted value for key '{key}' in working memory."
 
+class FinishInput(BaseModel):
+    answer: str = Field(description="The final answer or a summary of the outcome of the task.")
+
+class FinishTool(BaseTool):
+    name: str = "finish"
+    description: str = "Use this tool to signify that you have completed the objective. Provide the final answer or a summary of the outcome."
+    args_schema: Type[BaseModel] = FinishInput
+
+    def _run(self, answer: str) -> str:
+        return f"Objective completed. Final Answer: {answer}"
+
+    async def _arun(self, answer: str) -> str:
+        return f"Objective completed. Final Answer: {answer}"
