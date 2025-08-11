@@ -1,6 +1,7 @@
 import ollama
 import re
 import json
+import sys
 from constitution import AGENT_CONSTITUTION, ACTION_CONSTITUTION, SUPERVISOR_CONSTITUTION
 from typing import Any, List, Mapping, Optional
 
@@ -92,6 +93,21 @@ class OllamaChatModel(BaseChatModel):
     def _identifying_params(self) -> Mapping[str, Any]:
         return {"model_name": self.model_name}
 
+class MockOllamaChatModel(BaseChatModel):
+    """A mock model to be used in test environments where Ollama is not available."""
+    def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs: Any) -> ChatResult:
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content="Mocked response: Feature disabled in test environment."))])
+
+    async def _agenerate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, run_manager: Optional[CallbackManagerForLLMRun] = None, **kwargs: Any) -> ChatResult:
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content="Mocked response: Feature disabled in test environment."))])
+
+    @property
+    def _llm_type(self) -> str:
+        return "mock-ollama-chat"
+
+    @property
+    def _identifying_params(self) -> Mapping[str, Any]:
+        return {"model_name": "mock"}
 
 class AIModel:
     def __init__(self, main_model_name='mixtral:latest', supervisor_model_name='mixtral:latest', fast_model_name='phi3', vision_model_name='gemma:7b', scripter_model_name=None):
@@ -104,6 +120,19 @@ class AIModel:
         self.agent_constitution = AGENT_CONSTITUTION
         self.action_constitution = ACTION_CONSTITUTION
 
+        # Check if running in a virtual environment (often a sign of a test/dev environment)
+        # in which case we bypass the expensive model loading.
+        if sys.prefix != sys.base_prefix:
+            print("[INFO] Running in a virtual environment. Bypassing Ollama model check and pull.")
+            print("[INFO] AI models will be mocked to save resources.")
+            self.main_model = MockOllamaChatModel()
+            self.fast_model = MockOllamaChatModel()
+            self.supervisor_model = MockOllamaChatModel()
+            self.vision_model = MockOllamaChatModel()
+            self.scripter_model = MockOllamaChatModel()
+            return
+
+        # If not in a virtual environment, proceed with the full setup.
         self.main_model = OllamaChatModel(model_name=self.main_model_name)
         self.fast_model = OllamaChatModel(model_name=self.fast_model_name)
         self.supervisor_model = OllamaChatModel(model_name=self.supervisor_model_name)
@@ -111,6 +140,7 @@ class AIModel:
         self.scripter_model = OllamaChatModel(model_name=self.scripter_model_name)
 
         try:
+            print("[INFO] Performing full Ollama model check...")
             # Check if the model exists locally
             response = ollama.list()
             # Safely access the 'models' key, defaulting to an empty list if not found.

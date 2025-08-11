@@ -70,10 +70,10 @@ This section covers existing features that are functional but could be improved 
 
 ---
 
-### 2.5. Disabled Virtual Environment Check
-- **File:** `run_ui.py` (line 12)
-- **Description:** There is a commented-out block of code that checks if the application is running within a Python virtual environment. Enforcing this is a best practice to ensure dependency consistency.
-- **Suggested Action:** Re-enable and test the virtual environment check to ensure developers and users run the application in a consistent, isolated environment.
+### 2.5. Ollama Mocking in Test Environments
+- **File:** `ai_model.py` (line 155)
+- **Description:** To prevent memory overload issues in resource-constrained test environments, the application now detects if it is running within a Python virtual environment (`sys.prefix != sys.base_prefix`). If it is, the expensive Ollama models are not loaded. Instead, they are replaced by mock objects that return placeholder responses.
+- **Note:** This means that when running in a virtual environment, the AI's reasoning and vision capabilities will be disabled. This is intended for front-end development and testing where AI responses are not critical. For full functionality, run the application from a global Python environment where Ollama models can be loaded.
 
 ---
 
