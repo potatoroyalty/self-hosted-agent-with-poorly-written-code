@@ -26,6 +26,10 @@ class FindTextParams(TypedDict):
 class GoogleSearchParams(TypedDict):
     query: str
 
+class UpsertInMemoryParams(TypedDict):
+    key: str
+    value: str
+
 TOOL_SCHEMAS = {
     # Observation tools
     "get_page_content": {},  # No parameters needed
@@ -37,6 +41,8 @@ TOOL_SCHEMAS = {
     "type": {"element": int, "text": str},
     "select": {"element": int, "value": str},
     "scroll": {"direction": ["up", "down"]},
+    # Memory tools
+    "upsert_in_memory": {"key": str, "value": str},
     # Composite tools
     "perform_google_search": {"query": str},
     # Control tools

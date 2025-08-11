@@ -6,12 +6,14 @@ import importlib.util
 from ai_model import AIModel
 from browser_controller import BrowserController
 from website_graph import WebsiteGraph
+from working_memory import WorkingMemory
+from strategy_manager import StrategyManager, StrategyCallbackHandle
 from langchain_agent import (
-    BrowserTool, MacroTool,
+    BrowserTool, MacroTool, MemoryTool,
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
-    CreateMacroTool, NavigateToURLTool, AskUserForClarificationTool
+    CreateMacroTool, NavigateToURLTool, UpsertInMemoryTool, AskUserForClarificationTool
 )
 from vision_tools import FindElementWithVisionTool
 from langchain.agents import AgentExecutor, create_react_agent
@@ -29,7 +31,7 @@ class WebAgent:
         self.memory_file = memory_file
         self.critique_file = critique_file
         self.memory = []
-        self.session_memory = []
+        self.working_memory = WorkingMemory()
         self.max_steps = max_steps
         self.self_critique = "No critiques from previous runs."
         self.last_action_result = "No action has been taken yet."
@@ -37,6 +39,8 @@ class WebAgent:
         self.run_folder = f"runs/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
         self.website_graph = WebsiteGraph(graph_file_path=config.GRAPH_FILE_PATH)
+        self.strategy_manager = StrategyManager(config.STRATEGY_FILE_PATH)
+        self.strategy_callback_handler = StrategyCallbackHandler()
         self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
         self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph)
 
@@ -69,6 +73,7 @@ class WebAgent:
             WriteFileTool(),
             ExecuteScriptTool(),
             CreateMacroTool(controller=self.browser),
+            UpsertInMemoryTool(memory=self.working_memory)
         ]
 
         if self.clarification_request_queue and self.clarification_response_queue:
@@ -90,6 +95,8 @@ Previous Action Result: {last_action_result}
 
 Self-Critique from previous runs: {self_critique}
 
+Working Memory: {working_memory}
+
 Use the following format:
 
 Thought: you should always think about what to do
@@ -109,10 +116,10 @@ Begin!
 """)
 
         self.fast_agent = create_react_agent(self.ai_model.fast_model, self.tools, prompt)
-        self.fast_agent_executor = AgentExecutor(agent=self.fast_agent, tools=self.tools, verbose=True, handle_parsing_errors=True)
+        self.fast_agent_executor = AgentExecutor(agent=self.fast_agent, tools=self.tools, verbose=True, handle_parsing_errors=True, callbacks=[self.strategy_callback_handler])
 
         self.main_agent = create_react_agent(self.ai_model.main_model, self.tools, prompt)
-        self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True, handle_parsing_errors=True)
+        self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True, handle_parsing_errors=True, callbacks=[self.strategy_callback_handler])
 
     def get_tool_definitions(self):
         return "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
@@ -195,8 +202,43 @@ Begin!
                     print(f"[ERROR] Failed to load dynamic tool {tool_name}: {e}")
 
     async def run(self):
+        await self.ai_model.generate_and_set_dynamic_constitutions(self.objective)
         await self.browser.start()
         await self.browser.goto_url(self.start_url)
+
+        # Clear any recorded actions from a previous run
+        self.strategy_callback_handler.clear_actions()
+
+        # Check for and execute a cached strategy
+        domain = self.strategy_manager.get_domain(self.start_url)
+        strategy = self.strategy_manager.find_strategy(domain, self.objective)
+        if strategy:
+            print(f"[INFO] Found cached strategy for domain '{domain}' and objective '{self.objective}'. Executing strategy.")
+            for action in strategy:
+                tool_name = action['tool_name']
+                tool_input = action['tool_input']
+                matching_tool = next((t for t in self.tools if t.name == tool_name), None)
+                if matching_tool:
+                    try:
+                        # The tool's arun method expects the arguments to be passed as keyword arguments
+                        if isinstance(tool_input, dict):
+                            result = await matching_tool.arun(**tool_input)
+                        else:
+                            # Some tools might take a single string argument
+                            result = await matching_tool.arun(tool_input)
+                        print(f"[INFO] Executed action '{tool_name}' with input {tool_input}. Result: {result}")
+                        self.session_memory.append(f"Strategy Action: {tool_name}, Input: {tool_input}, Result: {result}")
+                    except Exception as e:
+                        error_message = f"An unexpected error occurred during strategy execution of tool {tool_name}: {e}"
+                        print(f"[ERROR] {error_message}")
+                        self.session_memory.append(f"Error: {error_message}")
+                        break # Stop strategy execution on error
+                else:
+                    print(f"[ERROR] Tool '{tool_name}' from strategy not found.")
+                    break
+
+            print("\n[INFO] Agent run has finished (strategy executed).")
+            return
 
         # Sanitize the objective to find a potential macro name
         sanitized_objective = re.sub(r'\s+', '_', self.objective)
@@ -216,12 +258,12 @@ Begin!
                 # The arun method of the macro tool will execute the sequence of actions
                 result = await matching_macro.arun({}) # Pass empty dict for args if no args are expected
                 self.last_action_result = result
-                self.session_memory.append(f"Macro Result: {self.last_action_result}")
+                self.working_memory.upsert("last_action_result", self.last_action_result)
                 print(f"[INFO] Macro execution finished. Result: {result}")
             except Exception as e:
                 error_message = f"An unexpected error occurred during macro execution: {e}"
                 print(f"[ERROR] {error_message}")
-                self.session_memory.append(f"Error: {error_message}")
+                self.working_memory.upsert("error", error_message)
 
             # After executing the macro, the run is considered complete for this step.
             print("\n[INFO] Agent run has finished (macro executed).")
@@ -243,14 +285,14 @@ Begin!
                 "objective": self.objective,
                 "last_action_result": self.last_action_result,
                 "self_critique": self.self_critique,
-                
+                "working_memory": self.working_memory.to_json(),
             })
             self.last_action_result = result.get("output", "Agent finished.")
-            self.session_memory.append(f"Final Result: {self.last_action_result}")
+            self.working_memory.upsert("last_action_result", self.last_action_result)
         except Exception as e:
             error_message = f"An unexpected error occurred during agent execution: {e}"
             print(f"[ERROR] {error_message}")
-            self.session_memory.append(f"Error: {error_message}")
+            self.working_memory.upsert("error", error_message)
 
         print("\n[INFO] Agent run has finished.")
 
@@ -258,10 +300,21 @@ Begin!
         session_log_path = os.path.join(self.run_folder, "session_log.txt")
         with open(session_log_path, 'w', encoding='utf-8', errors='ignore') as f:
             print(f"[INFO] Saving session log to {session_log_path}")
-            f.write("\n".join(self.session_memory))
+            f.write(self.working_memory.to_json())
         
         self.website_graph.save_graph()
+
+
+        # Save the strategy if the run was successful
+        # For now, we consider a run successful if it completes without an error.
+        # A more robust check could be added here later.
+        actions = self.strategy_callback_handler.actions
+        if actions:
+            domain = self.strategy_manager.get_domain(self.start_url)
+            self.strategy_manager.save_strategy(domain, self.objective, actions)
+
         critique = await self.ai_model.get_self_critique("\n".join(self.session_memory))
+
 
         with open(self.critique_file, 'w', encoding='utf-8', errors='ignore') as f:
             f.write(critique)
