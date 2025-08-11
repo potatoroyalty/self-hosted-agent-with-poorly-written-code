@@ -191,4 +191,96 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set the initial view
     switchView(browserView, browserLink);
+
+    // --- Quick Toggles Logic ---
+    const toggles = document.querySelectorAll('.quick-toggles input[type="checkbox"]');
+    toggles.forEach(toggle => {
+        // We don't want to add a listener to the theme-toggle here, as it has its own script.
+        if (toggle.id !== 'theme-toggle') {
+            toggle.addEventListener('change', (e) => {
+                console.log(`Toggle changed: ${e.target.id}, New value: ${e.target.checked}`);
+                // In a real implementation, this would likely send an update to the backend
+                // or change a configuration object.
+            });
+        }
+    });
+
+    // --- Generator View Logic ---
+    const generateScriptBtn = document.getElementById('generate-script-btn');
+    generateScriptBtn.addEventListener('click', () => {
+        console.log('Generate Script button clicked.');
+        // In a real implementation, this would trigger a call to the backend
+        // to generate a script based on recorded actions or other inputs.
+        alert('Script generation is not fully implemented yet.');
+    });
+
+    // --- Browser Control Logic ---
+    const browserIframe = document.getElementById('browser-iframe');
+    const urlBar = document.getElementById('url-bar');
+    const backBtn = document.getElementById('back-btn');
+    const forwardBtn = document.getElementById('forward-btn');
+    const refreshBtn = document.getElementById('refresh-btn');
+
+    // Function to navigate the iframe
+    function navigateTo(url) {
+        // A simple check to prepend https:// if no protocol is present
+        if (!/^(https?:\/\/|about:)/.test(url)) {
+            url = 'https://' + url;
+        }
+        browserIframe.src = url;
+    }
+
+    // Event listener for the URL bar
+    urlBar.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            navigateTo(urlBar.value);
+        }
+    });
+
+    // Event listeners for navigation buttons
+    backBtn.addEventListener('click', () => {
+        browserIframe.contentWindow.history.back();
+    });
+
+    forwardBtn.addEventListener('click', () => {
+        browserIframe.contentWindow.history.forward();
+    });
+
+    refreshBtn.addEventListener('click', () => {
+        browserIframe.contentWindow.location.reload();
+    });
+
+    // Update URL bar and inject bridge script when iframe navigation changes
+    browserIframe.addEventListener('load', () => {
+        try {
+            const newLocation = browserIframe.contentWindow.location.href;
+
+            // Update the URL bar
+            if (newLocation !== 'about:blank') {
+                urlBar.value = newLocation;
+            }
+
+            // Inject the bridge script
+            fetch('/bridge.js')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch bridge.js');
+                    }
+                    return response.text();
+                })
+                .then(scriptText => {
+                    const script = browserIframe.contentDocument.createElement('script');
+                    script.textContent = scriptText;
+                    browserIframe.contentDocument.head.appendChild(script);
+                    console.log('Successfully injected bridge.js into iframe.');
+                })
+                .catch(err => {
+                    console.error('Error injecting bridge.js:', err);
+                });
+
+        } catch (e) {
+            // This can happen due to cross-origin restrictions.
+            console.warn("Could not access iframe location or inject script due to cross-origin policy.", e.message);
+        }
+    });
 });
