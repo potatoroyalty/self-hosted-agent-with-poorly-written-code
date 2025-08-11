@@ -6,3 +6,5 @@ lxml
 Pillow
 langchain-core
 langchain
+Flask
+Flask-SocketIO
