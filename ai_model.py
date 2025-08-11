@@ -330,18 +330,29 @@ Labeled elements provided:
         prompt = f"""
         You are a Self-Correction AI. You will be given the log of a web agent's session.
         Your job is to identify the single biggest mistake the agent made.
-        Then, formulate a single, concise, one-sentence directive that the agent should follow in the future to avoid this mistake.
+        The session log is a JSON object that contains a history of reflections, world models, plans, and action results.
+        The 'action_result' contains the tool that was used, the parameters, and the result, which may include an error.
+
+        First, analyze the log to find the most significant error or inefficiency.
+
+        Second, determine if the error was due to the agent's flawed reasoning or a limitation of the available tools.
         
-        Example:
-        - Mistake: The agent tried to type into an element that wasn't a text box.
-        - Directive: Always use the `find_text` tool to confirm an element is a text input field before typing into it.
+        - If the error is due to the agent's reasoning, formulate a single, concise, one-sentence directive for the *agent*.
+          Example:
+          - Mistake: The agent tried to type into an element that wasn't a text box.
+          - Directive: Always use the `find_text` tool to confirm an element is a text input field before typing into it.
+
+        - If the error is due to a tool's limitation (e.g., a tool consistently fails or is not suitable for a specific task), formulate a single, concise, one-sentence directive for the *developer*. This directive should start with "Directive for developer:".
+          Example:
+          - Mistake: The `click_element` tool repeatedly failed on a dynamic JavaScript button.
+          - Directive for developer: The click_element tool is ineffective on dynamic buttons. Consider creating a new javascript_click tool that executes a click via a JS script.
 
         Here is the session log:
         <session_log>
         {session_log}
         </session_log>
         
-        Based on the log, what is the single most important directive for the agent's next run?
+        Based on the log, what is the single most important directive for the agent's next run or for the developer?
         """
         messages = [
             HumanMessage(content=prompt)
