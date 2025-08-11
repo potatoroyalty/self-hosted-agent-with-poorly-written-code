@@ -5,6 +5,31 @@ import asyncio
 from agent import WebAgent
 import config
 
+async def run_agent_task(objective, url=config.DEFAULT_URL, model=config.MAIN_MODEL, supervisor_model=config.SUPERVISOR_MODEL, fast_model=config.FAST_MODEL, vision_model=config.VISION_MODEL, max_steps=config.MAX_STEPS, low_memory=False):
+    # Override models for low memory mode
+    if low_memory or config.LOW_MEMORY_MODE:
+        print("[INFO] Low memory mode enabled. Using smaller models.")
+        model = config.LOW_MEMORY_MAIN_MODEL
+        supervisor_model = config.LOW_MEMORY_SUPERVISOR_MODEL
+        fast_model = config.LOW_MEMORY_FAST_MODEL
+        vision_model = config.LOW_MEMORY_VISION_MODEL
+
+    try:
+        agent = WebAgent(objective=objective, start_url=url, model_name=model, supervisor_model_name=supervisor_model, fast_model_name=fast_model, vision_model_name=vision_model, max_steps=max_steps)
+    except Exception as e:
+        print(f"[FATAL] Failed to initialize the agent: {e}")
+        return
+
+    try:
+        await agent.run()
+    finally:
+        # This block ensures that critique happens even if the run loop fails
+        print("[INFO] Run loop finished. Proceeding to save and critique.")
+        await agent.save_and_critique()
+        # Ensure browser closes if it's still open, e.g., after an error
+        await agent.browser.close()
+        print("[INFO] Browser closed.")
+
 async def main():
     parser = argparse.ArgumentParser(description="Run the professional Web Agent.")
     # MODIFIED: Make objective not required to work with the interactive batch script
@@ -29,33 +54,16 @@ async def main():
             print("\n[INFO] No objective provided. Exiting.")
             return
 
-    # NEW: Default to low memory mode if not specified via flag
-    if not args.low_memory:
-        args.low_memory = config.LOW_MEMORY_MODE
-
-    # Override models for low memory mode
-    if args.low_memory:
-        print("[INFO] Low memory mode enabled. Using smaller models.")
-        args.model = config.LOW_MEMORY_MAIN_MODEL
-        args.supervisor_model = config.LOW_MEMORY_SUPERVISOR_MODEL
-        args.fast_model = config.LOW_MEMORY_FAST_MODEL
-        args.vision_model = config.LOW_MEMORY_VISION_MODEL
-
-    try:
-        agent = WebAgent(objective=args.objective, start_url=args.url, model_name=args.model, supervisor_model_name=args.supervisor_model, fast_model_name=args.fast_model, vision_model_name=args.vision_model, max_steps=args.max_steps)
-    except Exception as e:
-        print(f"[FATAL] Failed to initialize the agent: {e}")
-        return
-
-    try:
-        await agent.run()
-    finally:
-        # This block ensures that critique happens even if the run loop fails
-        print("[INFO] Run loop finished. Proceeding to save and critique.")
-        await agent.save_and_critique()
-        # Ensure browser closes if it's still open, e.g., after an error
-        await agent.browser.close()
-        print("[INFO] Browser closed.")
+    await run_agent_task(
+        objective=args.objective,
+        url=args.url,
+        model=args.model,
+        supervisor_model=args.supervisor_model,
+        fast_model=args.fast_model,
+        vision_model=args.vision_model,
+        max_steps=args.max_steps,
+        low_memory=args.low_memory
+    )
 
 if __name__ == "__main__":
     try:
