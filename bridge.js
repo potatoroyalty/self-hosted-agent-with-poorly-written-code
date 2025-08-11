@@ -13,9 +13,21 @@
     console.log("Bridge script injected and running.");
 
     const socket = io('/bridge'); // Use a dedicated namespace for the bridge
+    let isRecording = false;
 
     socket.on('connect', () => {
         console.log("Bridge connected to backend via Socket.IO.");
+    });
+
+    // Listen for control messages from the backend
+    socket.on('start_recording_bridge', () => {
+        console.log('[Bridge] Recording enabled.');
+        isRecording = true;
+    });
+
+    socket.on('stop_recording_bridge', () => {
+        console.log('[Bridge] Recording disabled.');
+        isRecording = false;
     });
 
     socket.on('disconnect', () => {
@@ -69,8 +81,8 @@
     }
 
     function recordEvent(event) {
-        // We only care about user-initiated events.
-        if (!event.isTrusted) {
+        // We only care about user-initiated events and if recording is active.
+        if (!event.isTrusted || !isRecording) {
             return;
         }
 
@@ -84,9 +96,9 @@
             timestamp: Date.now()
         };
 
+        // The socket connection check is still a good idea.
         if (socket.connected) {
-            console.log("Recording event:", eventDetails);
-            socket.emit('record_action', eventDetails); // Use emit with a custom event name
+            socket.emit('record_action', eventDetails);
         }
     }
 
