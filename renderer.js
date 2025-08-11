@@ -101,9 +101,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const browserLink = document.getElementById('view-browser-link');
     const generatorLink = document.getElementById('view-generator-link');
+    const scriptsLink = document.getElementById('view-scripts-link');
+    const proxiesLink = document.getElementById('view-proxies-link');
+    const logsLink = document.getElementById('view-logs-link');
+    const settingsLink = document.getElementById('view-settings-link');
 
     const browserView = document.getElementById('browser-view');
     const generatorView = document.getElementById('generator-view');
+    const scriptsView = document.getElementById('scripts-view');
+    const proxiesView = document.getElementById('proxies-view');
+    const logsView = document.getElementById('logs-view');
+    const settingsView = document.getElementById('settings-view');
 
     function switchView(viewToShow, activeLink) {
         // Hide all views
@@ -137,11 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
         switchView(generatorView, generatorLink);
     });
 
-    // Add event listeners to disabled links to prevent navigation
-    document.querySelectorAll('.nav-link-disabled').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-        });
+    scriptsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView(scriptsView, scriptsLink);
+    });
+
+    proxiesLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView(proxiesView, proxiesLink);
+    });
+
+    logsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView(logsView, logsLink);
+    });
+
+    settingsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView(settingsView, settingsLink);
     });
 
     // Set the initial view
