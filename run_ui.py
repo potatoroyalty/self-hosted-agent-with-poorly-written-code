@@ -10,6 +10,14 @@ import webbrowser
 from threading import Timer
 from queue import Queue
 
+# Virtual environment check
+if sys.prefix == sys.base_prefix:
+    print("[ERROR] This script is not running in a virtual environment.")
+    print("Please activate the virtual environment created by 'setup.bat' before running this script.")
+    # Use input() to pause execution in a command window
+    input("Press Enter to exit...")
+    sys.exit(1)
+
 app = Flask(__name__)
 # MODIFIED: Allow for larger messages if screenshots are sent
 socketio = SocketIO(app, max_http_buffer_size=10 * 1024 * 1024)
