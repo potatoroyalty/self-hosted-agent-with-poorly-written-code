@@ -8,6 +8,45 @@ from ai_model import AIModel
 class FindElementWithVisionSchema(BaseModel):
     query: str = Field(description="A clear, natural language description of the element to find. For example, 'the search bar' or 'the button that says Log In'.")
 
+
+class AnalyzeVisualLayoutSchema(BaseModel):
+    question: str = Field(description="A high-level question about the page's layout or structure. For example, 'Is the main content a feed of articles?' or 'Where is the primary navigation bar?'.")
+
+
+class AnalyzeVisualLayoutTool(BaseTool):
+    name: str = "analyze_visual_layout"
+    description: str = "Use this tool to answer high-level questions about the page's structure and layout. It takes a natural language question and uses the vision model to analyze the current screenshot, returning a text-based answer. This is useful for understanding the overall page architecture (e.g., 'Is this a login page?', 'Does the page have a two-column layout?') rather than finding specific elements."
+    args_schema: Type[BaseModel] = AnalyzeVisualLayoutSchema
+    browser: BrowserController
+    ai_model: AIModel
+
+    def _run(self, question: str):
+        """Use the asynchronous version of the tool."""
+        raise NotImplementedError("This tool does not support synchronous execution.")
+
+    async def _arun(self, question: str):
+        """
+        1. Get a screenshot of the current page.
+        2. Use the vision model to answer the question based on the image.
+        3. Return the text-based answer.
+        """
+        print(f"[Vision Tool] Analyzing layout with question: '{question}'")
+
+        # 1. Get a screenshot of the current page
+        screenshot_b64 = await self.browser.get_screenshot_as_base64()
+        if not screenshot_b64:
+            return "Could not capture a screenshot of the page."
+
+        # 2. Use the vision model to answer the question
+        # This will be implemented in the next step by calling a new ai_model method
+        answer = await self.ai_model.analyze_layout(screenshot_b64, question)
+
+        print(f"[Vision Tool] Model answer: {answer}")
+
+        # 3. Return the text-based answer
+        return answer
+
+
 class FindElementWithVisionTool(BaseTool):
     name: str = "find_element_with_vision"
     description: str = "Use this tool to find a single specific element on the page. It takes a natural language query and uses a combination of text-based filtering and visual analysis to locate the element. It returns the element's label, which can then be used by other tools like 'click' or 'type'."

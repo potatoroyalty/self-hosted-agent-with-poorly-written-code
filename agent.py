@@ -13,7 +13,7 @@ from langchain_agent import (
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
     CreateMacroTool, NavigateToURLTool
 )
-from vision_tools import FindElementWithVisionTool
+from vision_tools import FindElementWithVisionTool, AnalyzeVisualLayoutTool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -53,6 +53,7 @@ class WebAgent:
         # Initialize LangChain tools
         self.tools = [
             FindElementWithVisionTool(browser=self.browser, ai_model=self.ai_model),
+            AnalyzeVisualLayoutTool(browser=self.browser, ai_model=self.ai_model),
             GoToPageTool(controller=self.browser),
             NavigateToURLTool(controller=self.browser),
             ClickElementTool(controller=self.browser),

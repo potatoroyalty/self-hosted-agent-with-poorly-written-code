@@ -171,6 +171,29 @@ class AIModel:
         response = await self.vision_model.agenerate(messages=messages)
         return response.generations[0].message.content.strip()
 
+    async def analyze_layout(self, encoded_image: str, question: str) -> str:
+        """
+        Given a screenshot and a question, answer the question about the page's layout.
+        """
+        prompt = (
+            f"You are a visual assistant. Based on the provided screenshot, "
+            f"please answer the following question about the page's layout and structure:\n\n"
+            f"Question: \"{question}\"\n\n"
+            f"Provide a direct and concise answer."
+        )
+        print("[LAYOUT ANALYSIS]")
+
+        messages = [
+            HumanMessage(
+                content=[
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}},
+                ]
+            )
+        ]
+        response = await self.vision_model.agenerate(messages=messages)
+        return response.generations[0].message.content.strip()
+
     async def get_page_description(self, encoded_image, labeled_elements):
         element_texts = []
         for i, element in enumerate(labeled_elements):
