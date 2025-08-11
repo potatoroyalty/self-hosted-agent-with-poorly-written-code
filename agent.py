@@ -13,13 +13,10 @@ from langchain_agent import (
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
     TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool,
     GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool,
-    CreateMacroTool, NavigateToURLTool, UpsertInMemoryTool, AskUserForClarificationTool
+    CreateMacroTool, NavigateToURLTool, UpsertInMemoryTool, AskUserForClarificationTool,
+    FinishTool
 )
 from vision_tools import FindElementWithVisionTool, AnalyzeVisualLayoutTool
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.messages import HumanMessage, AIMessage
 import config
 
 class WebAgent:
@@ -74,7 +71,8 @@ class WebAgent:
             WriteFileTool(),
             ExecuteScriptTool(),
             CreateMacroTool(controller=self.browser),
-            UpsertInMemoryTool(memory=self.working_memory)
+            UpsertInMemoryTool(memory=self.working_memory),
+            FinishTool()
         ]
 
         if self.clarification_request_queue and self.clarification_response_queue:
@@ -85,42 +83,6 @@ class WebAgent:
 
         # Load dynamic tools
         self.load_dynamic_tools()
-
-        # Initialize LangChain agent
-        prompt = PromptTemplate.from_template("""
-You are a web browsing agent. Your goal is to complete the objective.
-
-Objective: {objective}
-
-Previous Action Result: {last_action_result}
-
-Self-Critique from previous runs: {self_critique}
-
-Working Memory: {working_memory}
-
-Use the following format:
-
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Here are the tools you can use:
-{tools}
-
-Begin!
-
-{agent_scratchpad}
-""")
-
-        self.fast_agent = create_react_agent(self.ai_model.fast_model, self.tools, prompt)
-        self.fast_agent_executor = AgentExecutor(agent=self.fast_agent, tools=self.tools, verbose=True, handle_parsing_errors=True, callbacks=[self.strategy_callback_handler])
-
-        self.main_agent = create_react_agent(self.ai_model.main_model, self.tools, prompt)
-        self.agent_executor = AgentExecutor(agent=self.main_agent, tools=self.tools, verbose=True, handle_parsing_errors=True, callbacks=[self.strategy_callback_handler])
 
     def get_tool_definitions(self):
         return "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
@@ -254,8 +216,10 @@ Begin!
                     print(f"[WARN] Low confidence score ({confidence_score}). Asking user for clarification.")
                     clarification_tool = next((t for t in self.tools if t.name == "ask_user_for_clarification"), None)
                     if clarification_tool:
+                        world_model_summary = self.working_memory.get_world_model()
                         user_instruction = await clarification_tool.arun(
-                            f"I am not confident about the next action. My thought process is: '{thought}'. What should I do instead?"
+                            world_model=f"My objective is: {self.objective}\n\nMy current understanding of the situation is:\n{world_model_summary}\n\nI was about to take the action '{tool_name}' with parameters {params} but my confidence is low. My thought process was: '{thought}'. What should I do instead?",
+                            potential_actions=[] # The AI model does not currently generate a list of potential actions, so this is empty.
                         )
                         # The user response will be handled in the next loop iteration
                         self.last_action_result = f"User provided new instruction: {user_instruction}"
