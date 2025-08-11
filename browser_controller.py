@@ -8,6 +8,7 @@ from playwright.async_api import async_playwright, Browser, Page, ElementHandle
 from PIL import Image, ImageDraw, ImageFont
 import config
 from website_graph import WebsiteGraph
+from recovery import ErrorRecovery
 
 class BrowserController:
     """
@@ -20,6 +21,7 @@ class BrowserController:
         self.playwright = None
         self.run_folder = run_folder
         self.agent = agent
+        self.recovery = ErrorRecovery(agent=self.agent) if self.agent else None
         self.website_graph = website_graph
         self.labeled_elements: List[ElementHandle] = []
         self.current_screenshot_bytes: Optional[bytes] = None
@@ -251,18 +253,36 @@ class BrowserController:
                 if action_type == "click":
                     page = self._get_page()
                     from_url = page.url
+
                     await element.click(timeout=5000)
-                    await page.wait_for_load_state('networkidle', timeout=5000)
+                    try:
+                        await page.wait_for_load_state('networkidle', timeout=5000)
+                    except Exception:
+                        pass # Ignore timeout errors, page might be SPA
+
                     to_url = page.url
 
-                    if from_url != to_url and self.website_graph:
-                        page_title = await page.title()
-                        self.website_graph.add_page(from_url)
-                        self.website_graph.add_page(to_url, page_title=page_title)
-                        action = {"type": "click", "element_label": element_label}
-                        self.website_graph.add_edge(from_url, to_url, action)
+                    # If URL changed, it's a success
+                    if from_url != to_url:
+                        if self.website_graph:
+                            page_title = await page.title()
+                            self.website_graph.add_page(from_url)
+                            self.website_graph.add_page(to_url, page_title=page_title)
+                            action = {"type": "click", "element_label": element_label}
+                            self.website_graph.add_edge(from_url, to_url, action)
+                        return True, f"Clicked element {element_label} and navigated to {to_url}."
 
-                    return True, f"Clicked element {element_label}."
+                    # If URL did not change, it might be an AJAX action or a failure.
+                    # Attempt recovery.
+                    elif self.recovery:
+                        recovery_success, recovery_message = await self.recovery.recover_from_click_failure(element_label)
+                        if recovery_success:
+                            return True, f"Recovered from a potential click failure. {recovery_message}"
+                        else:
+                            return False, f"Click on element {element_label} failed and recovery was unsuccessful. {recovery_message}"
+
+                    # If no recovery mechanism, return success as the click was performed.
+                    return True, f"Clicked element {element_label}, but the URL did not change."
                 
                 elif action_type == "type":
                     text_to_type = details.get("text")

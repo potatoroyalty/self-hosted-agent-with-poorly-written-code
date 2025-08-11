@@ -1,7 +1,7 @@
 import ollama
 import re
 import json
-from constitution import AGENT_CONSTITUTION, ACTION_CONSTITUTION
+from constitution import AGENT_CONSTITUTION, ACTION_CONSTITUTION, SUPERVISOR_CONSTITUTION
 from typing import Any, List, Mapping, Optional
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
@@ -101,6 +101,9 @@ class AIModel:
         self.vision_model_name = vision_model_name
         self.scripter_model_name = scripter_model_name if scripter_model_name else supervisor_model_name
         
+        self.agent_constitution = AGENT_CONSTITUTION
+        self.action_constitution = ACTION_CONSTITUTION
+
         self.main_model = OllamaChatModel(model_name=self.main_model_name)
         self.fast_model = OllamaChatModel(model_name=self.fast_model_name)
         self.supervisor_model = OllamaChatModel(model_name=self.supervisor_model_name)
@@ -147,6 +150,44 @@ class AIModel:
             print(f"[ERROR] Failed to connect to Ollama or list models: {e}")
             print("[INFO] Please ensure the Ollama application is running and accessible.")
             raise
+
+    async def generate_and_set_dynamic_constitutions(self, objective: str):
+        """
+        Uses the supervisor model to generate and set dynamic constitutions based on the objective.
+        """
+        prompt = f"""
+        {SUPERVISOR_CONSTITUTION}
+
+        # User's Objective
+        "{objective}"
+        """
+        print("[INFO] Generating dynamic constitution...")
+        messages = [HumanMessage(content=prompt)]
+
+        try:
+            response = await self.supervisor_model.agenerate(messages=messages)
+            response_text = response.generations[0].message.content
+
+            json_match = re.search(r"```json\s*({{.*?}})\s*```|({{.*}})", response_text, re.DOTALL)
+            if not json_match:
+                raise ValueError("No valid JSON block found in the supervisor's response.")
+
+            json_str = json_match.group(1) or json_match.group(2)
+            constitutions = json.loads(json_str.strip())
+
+            if "agent_constitution" in constitutions and "action_constitution" in constitutions:
+                self.agent_constitution = constitutions["agent_constitution"]
+                self.action_constitution = constitutions["action_constitution"]
+                print("[INFO] Dynamic constitutions generated and set successfully.")
+            else:
+                raise ValueError("Generated constitution is missing required keys.")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to generate dynamic constitutions: {e}. Falling back to default.")
+            # Fallback to default constitutions
+            self.agent_constitution = AGENT_CONSTITUTION
+            self.action_constitution = ACTION_CONSTITUTION
+
 
     async def get_contextual_overview(self, encoded_image: str) -> str:
         """
@@ -203,9 +244,9 @@ Labeled elements provided:
         response = await self.vision_model.agenerate(messages=messages)
         return response.generations[0].message.content.strip()
 
-    async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image):
+    async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image, working_memory):
         prompt = f"""
-        {AGENT_CONSTITUTION}
+        {self.agent_constitution}
 
         # Main Objective
         Your overall objective is: "{objective}".
@@ -216,6 +257,10 @@ Labeled elements provided:
 
         # Factual Description of the Current Screen
         "{page_description}"
+
+        # Working Memory
+        You have access to a working memory that contains information you have gathered.
+        {working_memory}
 
         # History of Past Steps (for context)
         <history>{history}</history>
@@ -307,7 +352,7 @@ Labeled elements provided:
     async def get_strategic_plan(self, objective, history, page_description, self_critique):
         """First step of the cognitive cycle - generates high-level plan based on structured page data."""
         prompt = f"""
-        {AGENT_CONSTITUTION}
+        {self.agent_constitution}
 
         # Main Objective
         Your overall objective is: "{objective}".
@@ -350,7 +395,7 @@ Labeled elements provided:
     async def get_tactical_action(self, plan, encoded_image, page_description):
         """Second step of the cognitive cycle - generates specific action based on plan."""
         prompt = f"""
-        {ACTION_CONSTITUTION}
+        {self.action_constitution}
 
         # High-Level Plan
         {json.dumps(plan, indent=2)}
