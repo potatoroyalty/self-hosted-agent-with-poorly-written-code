@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto Browser</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="theme.css">
 </head>
 <body>
     <div class="container">
@@ -52,6 +53,13 @@
                         <span class="slider round"></span>
                     </label>
                     <span>Enable JavaScript</span>
+                </div>
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="theme-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Dark Mode</span>
                 </div>
             </div>
         </aside>
@@ -147,5 +155,6 @@
     </div>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="renderer.js"></script>
+    <script src="theme.js"></script>
 </body>
 </html>
