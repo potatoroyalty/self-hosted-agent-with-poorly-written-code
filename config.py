@@ -6,6 +6,7 @@ CRITIQUE_FILE = "critique_log.txt"
 PREPROCESSOR_PATH = "preprocessor.js"
 DYNAMIC_TOOLS_PATH = "dynamic_tools.json"
 GRAPH_FILE_PATH = "website_graph.json"
+STRATEGY_FILE_PATH = "strategies.json"
 
 # -- Model Configuration --
 # Main model for complex reasoning (text-based)
