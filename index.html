@@ -17,10 +17,10 @@
                 <ul>
                     <li><a href="#" id="view-browser-link" class="nav-link active">Browser</a></li>
                     <li><a href="#" id="view-generator-link" class="nav-link">Generator</a></li>
-                    <li><a href="#">Scripts</a></li>
-                    <li><a href="#">Proxies</a></li>
-                    <li><a href="#">Logs</a></li>
-                    <li><a href="#">Settings</a></li>
+                    <li><a href="#" class="nav-link-disabled">Scripts</a></li>
+                    <li><a href="#" class="nav-link-disabled">Proxies</a></li>
+                    <li><a href="#" class="nav-link-disabled">Logs</a></li>
+                    <li><a href="#" class="nav-link-disabled">Settings</a></li>
                 </ul>
             </nav>
             <div class="quick-toggles">
@@ -57,8 +57,13 @@
         </aside>
 
         <main class="main-content">
+            <div id="loading-overlay" style="display: none;">
+                <div class="spinner"></div>
+                <p>Agent is running...</p>
+            </div>
             <div id="clarification-container" class="clarification-popup" style="display: none;"></div>
             <div id="browser-view" class="view">
+                <textarea id="instruction-input" placeholder="Enter your objective here... e.g., 'Log into my account on example.com'"></textarea>
                 <div class="automation-controls">
                     <button id="start-btn">Start</button>
                     <button id="pause-btn">Pause</button>
@@ -83,7 +88,6 @@
 
             <div id="generator-view" class="view">
                 <h2>AI-Powered Script Generator</h2>
-                <textarea id="instruction-input" placeholder="Enter a high-level instruction... e.g., 'Log into my account on example.com'"></textarea>
                 <button id="generate-script-btn">Generate Script</button>
                 <div id="script-editor" class="code-editor">
                     <!-- Placeholder for the generated script editor -->
@@ -95,8 +99,8 @@
         <aside class="sidebar-right">
             <div class="tabs">
                 <button class="tab-link active" onclick="openTab(event, 'live-log')">Live Log</button>
-                <button class="tab-link" onclick="openTab(event, 'inspector')">Inspector</button>
-                <button class="tab-link" onclick="openTab(event, 'task-queue')">Task Queue</button>
+                <button class="tab-link" onclick="openTab(event, 'inspector')" disabled>Inspector</button>
+                <button class="tab-link" onclick="openTab(event, 'task-queue')" disabled>Task Queue</button>
             </div>
             <div id="live-log" class="tab-content" style="display: block;">
                 <p>Live log updates will appear here...</p>

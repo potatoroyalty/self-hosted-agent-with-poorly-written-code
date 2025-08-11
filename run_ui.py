@@ -41,9 +41,16 @@ def run_agent_in_background(objective, req_q, res_q):
     """Runs the agent task in a separate thread."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    # Pass the queues to the agent task
-    loop.run_until_complete(run_agent_task(objective, clarification_request_queue=req_q, clarification_response_queue=res_q))
-    loop.close()
+    try:
+        # Pass the queues to the agent task
+        loop.run_until_complete(run_agent_task(objective, clarification_request_queue=req_q, clarification_response_queue=res_q))
+    except Exception as e:
+        print(f"Agent task failed with exception: {e}")
+    finally:
+        print("Agent task finished. Notifying client.")
+        # Ensure the client is notified that the agent has stopped.
+        socketio.emit('agent_finished', {'status': 'completed'})
+        loop.close()
 
 # --- Flask Routes ---
 @app.route('/')
