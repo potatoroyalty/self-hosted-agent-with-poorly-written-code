@@ -139,3 +139,43 @@ Candidates:
             return f"Could not determine the correct element from the model's response: {response_text}"
         except (json.JSONDecodeError, KeyError) as e:
             return f"Error parsing model response: {e}. Raw response: {response_text}"
+
+class AnalyzeVisualLayoutSchema(BaseModel):
+    question: str = Field(description="A high-level question about the page's layout or structure. For example: 'Is the main content a feed of articles?', 'Is there a two-column layout?', or 'Where is the primary navigation bar located on the screen?'.")
+
+class AnalyzeVisualLayoutTool(BaseTool):
+    name: str = "analyze_visual_layout"
+    description: str = "Use this tool to ask high-level questions about the page's structure and layout. It takes a natural language question and uses the vision model to answer it based on a screenshot of the current page. This is useful for understanding the overall layout, such as identifying navigation bars, main content areas, or the number of columns."
+    args_schema: Type[BaseModel] = AnalyzeVisualLayoutSchema
+    browser: BrowserController
+    ai_model: AIModel
+
+    def _run(self, question: str):
+        """Use the asynchronous version of the tool."""
+        raise NotImplementedError("This tool does not support synchronous execution.")
+
+    async def _arun(self, question: str):
+        """
+        1. Get a screenshot of the current page.
+        2. Use the vision model to answer the question about the layout.
+        3. Return the model's answer.
+        """
+        print(f"[Vision Tool] Analyzing layout with question: '{question}'")
+
+        # 1. Get a screenshot of the current page
+        try:
+            screenshot_b64 = await self.browser.capture_screenshot()
+        except Exception as e:
+            return f"Error capturing screenshot: {e}"
+
+        if not screenshot_b64:
+            return "Could not capture a screenshot of the page."
+
+        # 2. Use the vision model to answer the question
+        # This calls a new method on the AIModel that we will create in the next step.
+        try:
+            answer = await self.ai_model.analyze_layout(screenshot_b64, question)
+            print(f"[Vision Tool] Model response: {answer}")
+            return answer
+        except Exception as e:
+            return f"An error occurred while analyzing the layout: {e}"
