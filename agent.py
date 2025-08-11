@@ -7,7 +7,7 @@ from ai_model import AIModel
 from browser_controller import BrowserController
 from website_graph import WebsiteGraph
 from working_memory import WorkingMemory
-from strategy_manager import StrategyManager, StrategyCallbackHandle
+from strategy_manager import StrategyManager, StrategyCallbackHandler
 from langchain_agent import (
     BrowserTool, MacroTool, MemoryTool,
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,

@@ -1,9 +1,11 @@
 import asyncio
-from typing import Type
+from typing import Type, TYPE_CHECKING
 from langchain.tools import BaseTool
 from pydantic import Field, BaseModel
-from browser_controller import BrowserController
 from ai_model import AIModel
+
+if TYPE_CHECKING:
+    from browser_controller import BrowserController
 
 class FindElementWithVisionSchema(BaseModel):
     query: str = Field(description="A clear, natural language description of the element to find. For example, 'the search bar' or 'the button that says Log In'.")
@@ -12,7 +14,7 @@ class FindElementWithVisionTool(BaseTool):
     name: str = "find_element_with_vision"
     description: str = "Use this tool to find a single specific element on the page. It takes a natural language query and uses a combination of text-based filtering and visual analysis to locate the element. It returns the element's label, which can then be used by other tools like 'click' or 'type'."
     args_schema: Type[BaseModel] = FindElementWithVisionSchema
-    browser: BrowserController
+    browser: "BrowserController"
     ai_model: AIModel
 
     def _run(self, query: str):
@@ -147,7 +149,7 @@ class AnalyzeVisualLayoutTool(BaseTool):
     name: str = "analyze_visual_layout"
     description: str = "Use this tool to ask high-level questions about the page's structure and layout. It takes a natural language question and uses the vision model to answer it based on a screenshot of the current page. This is useful for understanding the overall layout, such as identifying navigation bars, main content areas, or the number of columns."
     args_schema: Type[BaseModel] = AnalyzeVisualLayoutSchema
-    browser: BrowserController
+    browser: "BrowserController"
     ai_model: AIModel
 
     def _run(self, question: str):
