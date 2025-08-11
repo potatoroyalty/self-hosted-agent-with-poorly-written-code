@@ -247,13 +247,32 @@ Begin!
         print("\n[INFO] Agent run has finished.")
 
     async def save_and_critique(self):
+        # Save the detailed session log for debugging
         session_log_path = os.path.join(self.run_folder, "session_log.txt")
         with open(session_log_path, 'w', encoding='utf-8', errors='ignore') as f:
             print(f"[INFO] Saving session log to {session_log_path}")
             f.write("\n".join(self.session_memory))
         
+        # Save the website graph
         self.website_graph.save_graph()
-        critique = await self.ai_model.get_self_critique("\n".join(self.session_memory))
 
+        # Get the structured critique from the AI model
+        critique_dict = await self.ai_model.get_self_critique("\n".join(self.session_memory))
+
+        agent_directive = critique_dict.get("agent_directive", "No directive was generated.")
+        developer_suggestion = critique_dict.get("developer_suggestion")
+
+        # Save the agent directive for the next run
         with open(self.critique_file, 'w', encoding='utf-8', errors='ignore') as f:
-            f.write(critique)
+            f.write(agent_directive)
+        print(f"[INFO] Saved agent directive to {self.critique_file}")
+
+        # If there's a developer suggestion, append it to the developer log
+        if developer_suggestion:
+            dev_log_path = config.DEVELOPER_SUGGESTIONS_FILE
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_entry = f"[{timestamp}] - Suggestion: {developer_suggestion}\n"
+
+            with open(dev_log_path, 'a', encoding='utf-8', errors='ignore') as f:
+                f.write(log_entry)
+            print(f"[INFO] Appended developer suggestion to {dev_log_path}")

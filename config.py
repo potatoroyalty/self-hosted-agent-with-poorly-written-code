@@ -3,6 +3,7 @@ DEFAULT_URL = "https://www.google.com"
 MAX_STEPS = 15
 MEMORY_FILE = "memory_log.txt"
 CRITIQUE_FILE = "critique_log.txt"
+DEVELOPER_SUGGESTIONS_FILE = "developer_suggestions.log"
 PREPROCESSOR_PATH = "preprocessor.js"
 DYNAMIC_TOOLS_PATH = "dynamic_tools.json"
 GRAPH_FILE_PATH = "website_graph.json"

@@ -281,28 +281,68 @@ Labeled elements provided:
         print(f"[VALIDATION] AI proposed action: {json.dumps(proposed_action_json)}. Validator response: {decision}")
         return "true" in decision
 
-    async def get_self_critique(self, session_log):
+    async def get_self_critique(self, session_log: str) -> dict:
         prompt = f"""
-        You are a Self-Correction AI. You will be given the log of a web agent's session.
-        Your job is to identify the single biggest mistake the agent made.
-        Then, formulate a single, concise, one-sentence directive that the agent should follow in the future to avoid this mistake.
-        
-        Example:
-        - Mistake: The agent tried to type into an element that wasn't a text box.
-        - Directive: Always use the `find_text` tool to confirm an element is a text input field before typing into it.
+You are a Self-Correction and Tool Improvement AI. You will be given the log of a web agent's session.
+Your job is to perform two tasks:
+1.  **Identify the single biggest mistake** the agent made and formulate a concise, one-sentence directive for the agent to follow in the future.
+2.  **Analyze the tool usage**. If you identify a pattern of tool failure or a limitation in the available tools, suggest a concrete improvement for the developer. If the tools worked perfectly, this can be null.
 
-        Here is the session log:
-        <session_log>
-        {session_log}
-        </session_log>
-        
-        Based on the log, what is the single most important directive for the agent's next run?
-        """
-        messages = [
-            HumanMessage(content=prompt)
-        ]
+Respond with a single JSON object with two keys: "agent_directive" and "developer_suggestion".
+
+**Example 1:**
+*Log shows the agent repeatedly trying to click a non-clickable element.*
+{{
+    "agent_directive": "Always verify an element is clickable before attempting to click it.",
+    "developer_suggestion": null
+}}
+
+**Example 2:**
+*Log shows the agent struggling with a dynamic JavaScript button.*
+{{
+    "agent_directive": "If a standard click fails on a button, consider that it may require a JavaScript-based click.",
+    "developer_suggestion": "The `click_element` tool is ineffective on certain dynamic JavaScript buttons. Consider creating a new `javascript_click` tool that executes a click via a JS script."
+}}
+
+Here is the session log:
+<session_log>
+{session_log}
+</session_log>
+
+Based on the log, provide your analysis in the specified JSON format.
+"""
+        messages = [HumanMessage(content=prompt)]
         response = await self.fast_model.agenerate(messages=messages)
-        return response.generations[0].message.content.strip()
+        response_text = response.generations[0].message.content.strip()
+
+        try:
+            # Robustly find the JSON block
+            json_match = re.search(r"```json\s*({{.*?}})\s*```|({{.*}})", response_text, re.DOTALL)
+            if not json_match:
+                # Fallback for models that might just return the JSON directly
+                if not response_text.startswith('{'):
+                    response_text = '{' + response_text.split('{', 1)[-1]
+                if not response_text.endswith('}'):
+                    response_text = response_text.rsplit('}', 1)[0] + '}'
+
+            json_str = json_match.group(1) if json_match else response_text
+            parsed_json = json.loads(json_str)
+
+            # Ensure both keys are present
+            critique = {
+                "agent_directive": parsed_json.get("agent_directive", "No specific directive provided."),
+                "developer_suggestion": parsed_json.get("developer_suggestion") # Can be None
+            }
+            return critique
+
+        except (json.JSONDecodeError, AttributeError) as e:
+            print(f"[ERROR] Failed to parse self-critique JSON: {e}")
+            print(f"Raw response was: {response_text}")
+            # Fallback to prevent crashing the agent
+            return {
+                "agent_directive": "I failed to generate a valid self-critique. I will proceed with caution.",
+                "developer_suggestion": f"The self-critique model produced an invalid JSON response. Raw output: {response_text}"
+            }
 
     async def get_strategic_plan(self, objective, history, page_description, self_critique):
         """First step of the cognitive cycle - generates high-level plan based on structured page data."""
