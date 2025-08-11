@@ -1,0 +1,327 @@
+/* Basic Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+    overflow: hidden; /* Hide scrollbars from the body */
+}
+
+.container {
+    display: grid;
+    height: 100vh;
+    grid-template-columns: 240px 1fr 300px; /* Wider left sidebar */
+    grid-template-rows: 50px 1fr 30px;
+    grid-template-areas:
+        "header header header"
+        "sidebar-left main-content sidebar-right"
+        "status-bar status-bar status-bar";
+}
+
+/* Header */
+.main-header {
+    grid-area: header;
+    background-color: #2a2a2a;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.main-header h1 {
+    font-size: 1.2em;
+}
+
+/* Left Sidebar */
+.sidebar-left {
+    grid-area: sidebar-left;
+    background-color: #252526;
+    border-right: 1px solid #333;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-left nav {
+    flex-grow: 1;
+}
+
+.sidebar-left nav ul {
+    list-style: none;
+}
+
+.sidebar-left nav ul li a {
+    color: #ccc;
+    text-decoration: none;
+    display: block;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-left nav ul li a:hover,
+.sidebar-left nav ul li a.active {
+    background-color: #3a3a3a;
+    color: #fff;
+}
+
+/* Main Content */
+.main-content {
+    grid-area: main-content;
+    padding: 10px;
+    display: flex; /* This will contain the view */
+}
+
+#browser-view {
+    display: flex;
+    flex-direction: column;
+}
+
+.automation-controls, .browser-controls {
+    display: flex;
+    padding-bottom: 10px;
+    gap: 10px;
+    align-items: center;
+}
+
+.automation-controls button, .browser-controls button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    background-color: #3c3c3c;
+    color: #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.automation-controls button:hover, .browser-controls button:hover {
+    background-color: #4f4f4f;
+}
+
+#script-selector, #url-bar {
+    flex-grow: 1;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #333;
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+}
+
+.browser-controls .nav-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.browser-window {
+    flex-grow: 1;
+    background-color: #fff;
+    border: 1px solid #333;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.browser-window p {
+    color: #333;
+    font-size: 1.5em;
+}
+
+/* Right Sidebar */
+.sidebar-right {
+    grid-area: sidebar-right;
+    background-color: #252526;
+    border-left: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #333;
+}
+
+.tab-link {
+    flex: 1;
+    padding: 10px;
+    background-color: #252526;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.tab-link:hover {
+    background-color: #3a3a3a;
+}
+
+.tab-link.active {
+    background-color: #1a1a1a;
+    color: #fff;
+    border-top: 2px solid #0e639c;
+}
+
+.tab-content {
+    padding: 15px;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: none; /* Hidden by default */
+}
+
+/* Status Bar */
+.status-bar {
+    grid-area: status-bar;
+    background-color: #007acc;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    font-size: 0.8em;
+}
+
+/* Quick Toggles */
+.quick-toggles {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #333;
+}
+
+.quick-toggles h3 {
+    font-size: 0.8em;
+    color: #aaa;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    justify-content: space-between;
+}
+
+.toggle-switch span {
+    font-size: 0.9em;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4d4d4d;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #007acc;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #007acc;
+}
+
+input:checked + .slider:before {
+    transform: translateX(18px);
+}
+
+.slider.round {
+    border-radius: 22px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+
+/* Main Content Views */
+.view {
+    display: none; /* Hidden by default */
+    width: 100%;
+}
+
+#generator-view {
+    display: none; /* Initially hidden */
+    flex-direction: column;
+    gap: 15px;
+}
+
+#generator-view h2 {
+    font-size: 1.4em;
+    color: #f0f0f0;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+#instruction-input {
+    height: 120px;
+    resize: vertical;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #333;
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+    font-family: inherit;
+    font-size: 1em;
+}
+
+#generate-script-btn {
+    padding: 12px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007acc;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    align-self: flex-start;
+    font-size: 1em;
+}
+
+#generate-script-btn:hover {
+    background-color: #005a9e;
+}
+
+.code-editor {
+    flex-grow: 1;
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 15px;
+    font-family: "SF Mono", "Courier New", Courier, monospace;
+    color: #d4d4d4;
+    overflow-y: auto;
+}

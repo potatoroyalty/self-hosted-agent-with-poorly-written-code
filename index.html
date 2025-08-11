@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Browser</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1>Auto Browser v1.0</h1>
+        </header>
+
+        <aside class="sidebar-left">
+            <nav>
+                <ul>
+                    <li><a href="#" id="view-browser-link" class="nav-link active">Browser</a></li>
+                    <li><a href="#" id="view-generator-link" class="nav-link">Generator</a></li>
+                    <li><a href="#">Scripts</a></li>
+                    <li><a href="#">Proxies</a></li>
+                    <li><a href="#">Logs</a></li>
+                    <li><a href="#">Settings</a></li>
+                </ul>
+            </nav>
+            <div class="quick-toggles">
+                <h3>Quick Toggles</h3>
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="stealth-mode" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Stealth Mode</span>
+                </div>
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="proxy-usage" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Proxy Usage</span>
+                </div>
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="load-images" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Load Images</span>
+                </div>
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="enable-js" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Enable JavaScript</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="browser-view" class="view">
+                <div class="automation-controls">
+                    <button id="start-btn">Start</button>
+                    <button id="pause-btn">Pause</button>
+                    <button id="stop-btn">Stop</button>
+                    <select id="script-selector">
+                        <option value="">Select a script...</option>
+                    </select>
+                </div>
+                <div class="browser-controls">
+                    <div class="nav-buttons">
+                        <button id="back-btn">&lt;</button>
+                        <button id="forward-btn">&gt;</button>
+                        <button id="refresh-btn">O</button>
+                    </div>
+                    <input type="text" id="url-bar" placeholder="https://example.com">
+                </div>
+                <div class="browser-window">
+                    <!-- Embedded browser content will go here -->
+                    <p>Embedded Browser Window</p>
+                </div>
+            </div>
+
+            <div id="generator-view" class="view">
+                <h2>AI-Powered Script Generator</h2>
+                <textarea id="instruction-input" placeholder="Enter a high-level instruction... e.g., 'Log into my account on example.com'"></textarea>
+                <button id="generate-script-btn">Generate Script</button>
+                <div id="script-editor" class="code-editor">
+                    <!-- Placeholder for the generated script editor -->
+                    <p>// Generated script will appear here</p>
+                </div>
+            </div>
+        </main>
+
+        <aside class="sidebar-right">
+            <div class="tabs">
+                <button class="tab-link active" onclick="openTab(event, 'live-log')">Live Log</button>
+                <button class="tab-link" onclick="openTab(event, 'inspector')">Inspector</button>
+                <button class="tab-link" onclick="openTab(event, 'task-queue')">Task Queue</button>
+            </div>
+            <div id="live-log" class="tab-content" style="display: block;">
+                <p>Live log updates will appear here...</p>
+            </div>
+            <div id="inspector" class="tab-content">
+                <p>Element inspector details will appear here...</p>
+            </div>
+            <div id="task-queue" class="tab-content">
+                <p>Queued tasks will appear here...</p>
+            </div>
+        </aside>
+
+        <footer class="status-bar">
+            <span>Status: Idle</span>
+            <span>IP: 127.0.0.1</span>
+            <span>User-Agent: Default</span>
+            <span>Speed: Normal</span>
+            <span>Stealth: ON</span>
+        </footer>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>
