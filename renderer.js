@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('response', (data) => {
         console.log('Message from server:', data);
         const logContainer = document.getElementById('live-log');
-        logContainer.innerHTML += `<p>${data.data}</p>`;
+        const sanitizedData = DOMPurify.sanitize(data.data);
+        logContainer.innerHTML += `<p>${sanitizedData}</p>`;
     });
 
     socket.on('log_update', (data) => {
