@@ -331,4 +331,61 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn("Could not access iframe location or inject script due to cross-origin policy.", e.message);
         }
     });
+
+    // --- Settings Page Logic ---
+    const settingsForm = document.getElementById('settings-form');
+
+    function populateSettingsForm(settings) {
+        for (const key in settings) {
+            const input = settingsForm.elements[key];
+            if (input) {
+                if (input.type === 'checkbox') {
+                    input.checked = settings[key];
+                } else {
+                    input.value = settings[key];
+                }
+            }
+        }
+    }
+
+    async function loadSettings() {
+        try {
+            const response = await fetch('/get_settings');
+            if (!response.ok) {
+                throw new Error('Failed to fetch settings');
+            }
+            const settings = await response.json();
+            populateSettingsForm(settings);
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            // Optionally, show an error message to the user
+        }
+    }
+
+    function handleSettingChange(e) {
+        const input = e.target;
+        const key = input.name;
+        let value;
+
+        if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (input.type === 'number' || input.type === 'range') {
+            value = parseFloat(input.value);
+        } else {
+            value = input.value;
+        }
+
+        console.log(`Setting changed: ${key}, New value: ${value}`);
+        socket.emit('update_config', { key: key, value: value });
+    }
+
+    // Add event listeners to all form elements in the settings form
+    if (settingsForm) {
+        Array.from(settingsForm.elements).forEach(element => {
+            element.addEventListener('change', handleSettingChange);
+        });
+    }
+
+    // Load settings when the DOM is ready
+    loadSettings();
 });
