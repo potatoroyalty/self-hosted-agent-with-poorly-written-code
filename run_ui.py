@@ -34,6 +34,9 @@ sys.stderr = log_stream
 # --- Agent Task Management ---
 agent_thread = None
 agent_task = None
+agent_paused = threading.Event()
+agent_stopped = threading.Event()
+agent_status = "Idle"
 clarification_request_queue = Queue()
 clarification_response_queue = Queue()
 
@@ -41,19 +44,26 @@ clarification_response_queue = Queue()
 is_recording = False
 recorded_events = []
 
-def run_agent_in_background(objective, req_q, res_q):
+def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event):
     """Runs the agent task in a separate thread."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        # Pass the queues to the agent task
-        loop.run_until_complete(run_agent_task(objective, clarification_request_queue=req_q, clarification_response_queue=res_q))
+        # Pass the queues and events to the agent task
+        loop.run_until_complete(run_agent_task(
+            objective,
+            clarification_request_queue=req_q,
+            clarification_response_queue=res_q,
+            paused_event=paused_event,
+            stopped_event=stopped_event
+        ))
     except Exception as e:
         print(f"Agent task failed with exception: {e}")
     finally:
-        print("Agent task finished. Notifying client.")
+        print("Agent task finished or stopped. Notifying client.")
         # Ensure the client is notified that the agent has stopped.
-        socketio.emit('agent_finished', {'status': 'completed'})
+        if not stopped_event.is_set():
+            socketio.emit('agent_finished', {'status': 'completed'})
         loop.close()
 
 # --- Flask Routes ---
@@ -66,14 +76,52 @@ def serve_static(path):
     return send_from_directory(project_root, path)
 
 # --- SocketIO Event Handlers ---
+def get_scripts():
+    """Scans the 'scripts' directory for .js files."""
+    scripts_dir = os.path.join(project_root, 'scripts')
+    if not os.path.exists(scripts_dir):
+        return []
+    return [f for f in os.listdir(scripts_dir) if f.endswith('.js')]
+
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
     emit('response', {'data': 'Connected to server!'})
+    scripts = get_scripts()
+    emit('script_list', {'scripts': scripts})
+
+@socketio.on('run_script')
+def handle_run_script(json_data):
+    """Handles a request to run a script."""
+    script_name = json_data.get('script')
+    if not script_name:
+        emit('error', {'message': 'Script name is required.'})
+        return
+
+    scripts_dir = os.path.join(project_root, 'scripts')
+    script_path = os.path.join(scripts_dir, script_name)
+
+    if not os.path.exists(script_path):
+        emit('error', {'message': f"Script '{script_name}' not found."})
+        return
+
+    try:
+        with open(script_path, 'r') as f:
+            script_content = f.read()
+
+        # For now, we'll treat the script content as the objective.
+        # A more advanced implementation would execute the script's JS.
+        print(f"Running script '{script_name}' as an objective.")
+        handle_start_agent({'objective': script_content})
+
+    except Exception as e:
+        error_msg = f"Failed to read or run script '{script_name}': {e}"
+        print(f"[ERROR] {error_msg}")
+        emit('error', {'message': error_msg})
 
 @socketio.on('start_agent')
 def handle_start_agent(json_data):
-    global agent_thread, clarification_request_queue, clarification_response_queue
+    global agent_thread, agent_paused, agent_stopped, agent_status, clarification_request_queue, clarification_response_queue
     objective = json_data.get('objective')
     if not objective:
         emit('error', {'message': 'Objective is required.'})
@@ -86,21 +134,64 @@ def handle_start_agent(json_data):
     print(f"Received start request for objective: {objective}")
     emit('response', {'data': f'Starting agent with objective: {objective}'})
 
-    # Clear any leftover items in queues from previous runs
+    # Reset events and queues
+    agent_paused.clear()
+    agent_stopped.clear()
+    agent_status = "Running"
     while not clarification_request_queue.empty():
         clarification_request_queue.get()
     while not clarification_response_queue.empty():
         clarification_response_queue.get()
 
     # Start the agent in a new thread
-    agent_thread = threading.Thread(target=run_agent_in_background, args=(objective, clarification_request_queue, clarification_response_queue))
+    agent_thread = threading.Thread(
+        target=run_agent_in_background,
+        args=(objective, clarification_request_queue, clarification_response_queue, agent_paused, agent_stopped)
+    )
     agent_thread.start()
+
+@socketio.on('pause_agent')
+def handle_pause_agent():
+    global agent_paused, agent_status
+    if agent_paused.is_set():
+        agent_paused.clear()
+        agent_status = "Running"
+        print("Agent resumed.")
+        emit('response', {'data': 'Agent resumed.'})
+    else:
+        agent_paused.set()
+        agent_status = "Paused"
+        print("Agent paused.")
+        emit('response', {'data': 'Agent paused.'})
+
+@socketio.on('stop_agent')
+def handle_stop_agent():
+    global agent_stopped, agent_thread, agent_status
+    if agent_thread and agent_thread.is_alive():
+        agent_stopped.set()
+        # Wait for the thread to finish
+        agent_thread.join()
+        agent_status = "Idle"
+        print("Agent stopped.")
+        emit('response', {'data': 'Agent stopped.'})
+        socketio.emit('agent_finished', {'status': 'stopped'})
 
 @socketio.on('clarification_response')
 def handle_clarification_response(json_data):
     """Handles the user's response to a clarification request."""
     print(f"Received clarification response: {json_data}")
     clarification_response_queue.put(json_data)
+
+@socketio.on('update_config')
+def handle_update_config(json_data):
+    """Handles configuration updates from the UI toggles."""
+    key = json_data.get('key')
+    value = json_data.get('value')
+    if key:
+        print(f"[CONFIG] Updated '{key}' to '{value}'")
+        # Here you would typically update a shared config object or file
+        # For now, we'll just print it.
+        emit('response', {'data': f"Configuration '{key}' updated to '{value}'."})
 
 # --- Recording Event Handlers ---
 @socketio.on('start_recording')
@@ -168,6 +259,23 @@ def stream_logs():
             last_position = log_stream.tell()
         socketio.sleep(1) # Non-blocking sleep
 
+def stream_status():
+    """Periodically sends status updates to the client."""
+    global agent_status
+    while True:
+        if not (agent_thread and agent_thread.is_alive()):
+            agent_status = "Idle"
+
+        status_data = {
+            'status': agent_status,
+            'ip': '127.0.0.1', # Placeholder
+            'user_agent': 'Default', # Placeholder
+            'speed': 'Normal', # Placeholder
+            'stealth': 'ON' # Placeholder
+        }
+        socketio.emit('status_update', status_data)
+        socketio.sleep(2) # Update status every 2 seconds
+
 def open_browser():
     """Opens the default web browser to the application's URL."""
     webbrowser.open_new("http://127.0.0.1:5000")
@@ -176,6 +284,7 @@ if __name__ == "__main__":
     # Start the background tasks
     socketio.start_background_task(stream_logs)
     socketio.start_background_task(stream_clarification_requests)
+    socketio.start_background_task(stream_status)
 
     print("Starting web server with SocketIO...")
     # Open the web browser 1 second after starting the server
