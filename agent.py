@@ -177,8 +177,24 @@ class WebAgent:
                     print(f"[ERROR] Failed to load dynamic tool {tool_name}: {e}")
 
     async def run(self):
-        await self.ai_model.generate_and_set_dynamic_constitutions(self.objective)
         await self.browser.start()
+
+        # Check for special 'run_macro' objective
+        if self.objective.startswith("run_macro:"):
+            tool_name = self.objective.split(":")[1]
+            tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
+            if tool_to_execute:
+                print(f"[INFO] Directly executing macro: {tool_name}")
+                # Macros might need to navigate to a starting URL
+                await self.browser.goto_url(self.start_url)
+                # The 'arun' method of a MacroTool is expected to be a coroutine
+                await tool_to_execute.arun()
+                print(f"[INFO] Macro {tool_name} finished execution.")
+            else:
+                print(f"[ERROR] Macro tool '{tool_name}' not found.")
+            return # End the run after executing the macro
+
+        await self.ai_model.generate_and_set_dynamic_constitutions(self.objective)
         await self.browser.goto_url(self.start_url)
 
         # Clear any recorded actions from a previous run

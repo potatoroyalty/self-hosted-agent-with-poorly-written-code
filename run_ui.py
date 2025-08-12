@@ -188,11 +188,18 @@ def handle_clear_log(json_data):
 
 # --- SocketIO Event Handlers ---
 def get_scripts():
-    """Scans the 'scripts' directory for .js files."""
-    scripts_dir = os.path.join(project_root, 'scripts')
-    if not os.path.exists(scripts_dir):
+    """Loads the list of dynamic tools from the JSON config file."""
+    dynamic_tools_path = config.DYNAMIC_TOOLS_PATH
+    if not os.path.exists(dynamic_tools_path):
         return []
-    return [f for f in os.listdir(scripts_dir) if f.endswith('.js')]
+    try:
+        with open(dynamic_tools_path, 'r', encoding='utf-8') as f:
+            tools_config = json.load(f)
+        # Return the 'name' of each tool
+        return [tool.get('name', 'unnamed_tool') for tool in tools_config]
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"[ERROR] Failed to load or parse dynamic tools config: {e}")
+        return []
 
 @socketio.on('connect')
 def handle_connect():
@@ -203,32 +210,21 @@ def handle_connect():
 
 @socketio.on('run_script')
 def handle_run_script(json_data):
-    """Handles a request to run a script."""
-    script_name = json_data.get('script')
-    if not script_name:
-        emit('error', {'message': 'Script name is required.'})
+    """
+    Handles a request to run a script by starting the agent with a
+    special objective that tells it to execute a specific macro.
+    """
+    tool_name = json_data.get('script')
+    if not tool_name:
+        emit('error', {'message': 'Script name (tool_name) is required.'})
         return
 
-    scripts_dir = os.path.join(project_root, 'scripts')
-    script_path = os.path.join(scripts_dir, script_name)
+    # Formulate a special objective for the agent
+    objective = f"run_macro:{tool_name}"
+    print(f"Starting agent to run macro: '{tool_name}'")
 
-    if not os.path.exists(script_path):
-        emit('error', {'message': f"Script '{script_name}' not found."})
-        return
-
-    try:
-        with open(script_path, 'r') as f:
-            script_content = f.read()
-
-        # For now, we'll treat the script content as the objective.
-        # A more advanced implementation would execute the script's JS.
-        print(f"Running script '{script_name}' as an objective.")
-        handle_start_agent({'objective': script_content})
-
-    except Exception as e:
-        error_msg = f"Failed to read or run script '{script_name}': {e}"
-        print(f"[ERROR] {error_msg}")
-        emit('error', {'message': error_msg})
+    # Use the existing handle_start_agent function to run the agent
+    handle_start_agent({'objective': objective})
 
 @socketio.on('start_agent')
 def handle_start_agent(json_data):
@@ -307,7 +303,10 @@ def handle_update_config(json_data):
 
 @socketio.on('generate_script')
 def handle_generate_script(json_data):
-    """Handles a request to generate a script from a recording."""
+    """
+    Handles a request to generate a script from a recording, saves it
+    to the 'macros' directory, and registers it in dynamic_tools.json.
+    """
     global recorded_events, ai_model_instance
     script_name = json_data.get('script_name')
     objective = json_data.get('objective')
@@ -315,67 +314,97 @@ def handle_generate_script(json_data):
     if not script_name or not objective:
         emit('script_generated', {'success': False, 'error': 'Script name and objective are required.'})
         return
-
     if not recorded_events:
         emit('script_generated', {'success': False, 'error': 'No recorded actions to generate a script from.'})
         return
-
     if not ai_model_instance:
         emit('script_generated', {'success': False, 'error': 'AI Model is not available.'})
         return
 
     print(f"Generating script '{script_name}' for objective: {objective}")
 
-    try:
-        # This needs to be run in an async context
-        async def generate():
-            # Sanitize to create a valid class name
+    def run_async_generation():
+        asyncio.run(generate_and_save())
+
+    async def generate_and_save():
+        try:
+            # Sanitize to create valid names
+            tool_name = re.sub(r'\s+', '_', script_name)
+            tool_name = re.sub(r'\W+', '', tool_name).lower()
             class_name = f"{script_name.replace('_', ' ').title().replace(' ', '')}MacroTool"
-            tool_name = script_name
 
-            # We need the tool definitions for the prompt
-            # This is a simplification; in a real app, you'd have a more robust way to get this
-            from langchain_agent import GoToPageTool, ClickElementTool, TypeTextTool
-            tool_definitions = "\n".join([f"- {tool.name}: {tool.description}" for tool in [GoToPageTool, ClickElementTool, TypeTextTool]])
+            # Define the tools available for the macro
+            from langchain_agent import (
+                GoToPageTool, ClickElementTool, TypeTextTool, ScrollPageTool,
+                FindElementsByTextTool, GetPageContentTool
+            )
+            tool_definitions = "\n".join([
+                f"- {tool.name}: {tool.description}" for tool in [
+                    GoToPageTool, ClickElementTool, TypeTextTool, ScrollPageTool,
+                    FindElementsByTextTool, GetPageContentTool
+                ]
+            ])
 
-            return await ai_model_instance.generate_script_from_recording(
-                recorded_events,
-                objective,
-                tool_name,
-                class_name,
-                tool_definitions
+            # Generate the script content
+            script_content = await ai_model_instance.generate_script_from_recording(
+                recorded_events, objective, tool_name, class_name, tool_definitions
             )
 
-        script_content = asyncio.run(generate())
+            if not script_content:
+                emit('script_generated', {'success': False, 'error': 'AI failed to generate script content.'})
+                return
 
-        if not script_content:
-            emit('script_generated', {'success': False, 'error': 'AI failed to generate script content.'})
-            return
+            # The generated script needs access to the base classes and tools
+            script_header = "from langchain_agent import MacroTool, GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool, TakeScreenshotTool, ScrollPageTool, GetPageContentTool, FindElementsByTextTool, GetAllLinksTool, PerformGoogleSearchTool, WriteFileTool, ExecuteScriptTool\n"
+            script_content = script_header + script_content
 
-        # Save the script
-        scripts_dir = os.path.join(project_root, 'scripts')
-        if not os.path.exists(scripts_dir):
-            os.makedirs(scripts_dir)
+            # Save the script to the 'macros' directory
+            macros_dir = os.path.join(project_root, "macros")
+            if not os.path.exists(macros_dir):
+                os.makedirs(macros_dir)
 
-        # Sanitize script_name to be a valid filename
-        safe_script_name = "".join(c for c in script_name if c.isalnum() or c in ('_', '-')).rstrip()
-        file_path = os.path.join(scripts_dir, f"{safe_script_name}.py")
+            file_path = os.path.join(macros_dir, f"{tool_name}.py")
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(script_content)
 
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(script_content)
+            print(f"Script saved to {file_path}")
 
-        print(f"Script saved to {file_path}")
+            # Update dynamic_tools.json
+            dynamic_tools_path = config.DYNAMIC_TOOLS_PATH
+            if os.path.exists(dynamic_tools_path):
+                with open(dynamic_tools_path, 'r', encoding='utf-8') as f:
+                    tools_config = json.load(f)
+            else:
+                tools_config = []
 
-        emit('script_generated', {
-            'success': True,
-            'script_name': script_name,
-            'script_content': script_content
-        })
+            # Remove existing tool with the same name if any
+            tools_config = [t for t in tools_config if t['name'] != tool_name]
+            tools_config.append({
+                "name": tool_name,
+                "module_path": file_path,
+                "class_name": class_name
+            })
 
-    except Exception as e:
-        error_msg = f"Failed to generate script: {e}"
-        print(f"[ERROR] {error_msg}")
-        emit('script_generated', {'success': False, 'error': str(e)})
+            with open(dynamic_tools_path, 'w', encoding='utf-8') as f:
+                json.dump(tools_config, f, indent=4)
+
+            print(f"Updated dynamic tools config with new macro: {tool_name}")
+
+            emit('script_generated', {
+                'success': True,
+                'script_name': script_name,
+                'script_content': script_content
+            })
+            # Refresh script lists in the UI
+            handle_request_script_list()
+
+        except Exception as e:
+            error_msg = f"Failed to generate script: {e}"
+            print(f"[ERROR] {error_msg}")
+            emit('script_generated', {'success': False, 'error': str(e)})
+
+    # Run the async generation in a background thread to avoid blocking
+    socketio.start_background_task(run_async_generation)
 
 
 @socketio.on('request_script_list')
@@ -388,29 +417,51 @@ def handle_request_script_list():
 
 @socketio.on('delete_script')
 def handle_delete_script(json_data):
-    """Handles a request to delete a script."""
-    script_name = json_data.get('script_name')
-    if not script_name:
+    """
+    Handles a request to delete a script. It removes the script file
+    and its corresponding entry from dynamic_tools.json.
+    """
+    tool_name = json_data.get('script_name') # The UI sends the tool name
+    if not tool_name:
         emit('script_deleted', {'success': False, 'error': 'Script name not provided.'})
         return
 
     try:
-        scripts_dir = os.path.join(project_root, 'scripts')
-        # Basic security check to prevent directory traversal
-        if '..' in script_name or not script_name.endswith(('.js', '.py')):
-             emit('script_deleted', {'success': False, 'error': 'Invalid script name.'})
-             return
+        dynamic_tools_path = config.DYNAMIC_TOOLS_PATH
+        if not os.path.exists(dynamic_tools_path):
+            emit('script_deleted', {'success': False, 'error': 'Dynamic tools config file not found.'})
+            return
 
-        script_path = os.path.join(scripts_dir, script_name)
+        with open(dynamic_tools_path, 'r', encoding='utf-8') as f:
+            tools_config = json.load(f)
 
-        if os.path.exists(script_path):
+        # Find the tool to delete
+        tool_to_delete = next((t for t in tools_config if t['name'] == tool_name), None)
+
+        if not tool_to_delete:
+            emit('script_deleted', {'success': False, 'error': f"Tool '{tool_name}' not found in config."})
+            return
+
+        # Remove the script file
+        script_path = tool_to_delete.get('module_path')
+        if script_path and os.path.exists(script_path):
             os.remove(script_path)
-            print(f"Deleted script: {script_name}")
-            emit('script_deleted', {'success': True, 'script_name': script_name})
+            print(f"Deleted script file: {script_path}")
         else:
-            emit('script_deleted', {'success': False, 'error': 'Script not found.'})
+            print(f"Warning: Script file for tool '{tool_name}' not found at path: {script_path}")
+
+        # Remove the tool from the config
+        updated_tools_config = [t for t in tools_config if t['name'] != tool_name]
+        with open(dynamic_tools_path, 'w', encoding='utf-8') as f:
+            json.dump(updated_tools_config, f, indent=4)
+
+        print(f"Deleted script '{tool_name}' from dynamic tools config.")
+        emit('script_deleted', {'success': True, 'script_name': tool_name})
+        # Refresh script lists in the UI
+        handle_request_script_list()
+
     except Exception as e:
-        print(f"Error deleting script '{script_name}': {e}")
+        print(f"Error deleting script '{tool_name}': {e}")
         emit('script_deleted', {'success': False, 'error': str(e)})
 
 
