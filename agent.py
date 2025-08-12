@@ -206,6 +206,42 @@ class WebAgent:
         await self.ai_model.generate_and_set_dynamic_constitutions(self.objective)
         await self.browser.goto_url(self.start_url)
 
+        # Try to execute a saved strategy if one exists
+        domain = self.strategy_manager.get_domain(self.start_url)
+        strategy = self.strategy_manager.find_strategy(domain, self.objective)
+
+        if strategy:
+            print(f"[INFO] Found a strategy for domain '{domain}' and objective '{self.objective}'. Executing...")
+            # Ensure we start from the correct URL, as some strategies might assume it.
+            await self.browser.goto_url(self.start_url)
+
+            for action in strategy:
+                if self.stopped_event and self.stopped_event.is_set():
+                    print("[INFO] Stop event received during strategy execution. Halting.")
+                    break
+
+                tool_name = action.get("tool_name")
+                tool_input = action.get("tool_input")
+
+                tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
+                if tool_to_execute:
+                    try:
+                        print(f"[STRATEGY] Executing action: {tool_name} with input {tool_input}")
+                        # We need to pass the arguments correctly to the tool's 'arun' method
+                        result = await tool_to_execute.arun(**tool_input)
+                        print(f"[STRATEGY] Action finished with result: {result}")
+                    except Exception as e:
+                        print(f"[ERROR] Error executing action from strategy: {e}")
+                        # If an action fails, we stop the strategy execution.
+                        break
+                else:
+                    print(f"[ERROR] Tool '{tool_name}' from strategy not found.")
+                    break
+
+            print("[INFO] Strategy execution finished.")
+            # The run is considered complete after executing a successful strategy.
+            return
+
         # Clear any recorded actions from a previous run
         self.strategy_callback_handler.clear_actions()
 
