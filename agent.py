@@ -3,6 +3,7 @@ import json
 import re
 from datetime import datetime
 import importlib.util
+from unittest.mock import MagicMock
 from ai_model import AIModel
 from browser_controller import BrowserController
 from website_graph import WebsiteGraph
@@ -50,7 +51,11 @@ class WebAgent:
         self.website_graph = WebsiteGraph(graph_file_path=config.GRAPH_FILE_PATH)
         self.strategy_manager = StrategyManager(config.STRATEGY_FILE_PATH)
         self.strategy_callback_handler = StrategyCallbackHandler()
-        self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
+        if self.testing:
+            print("[INFO] Testing mode enabled. Using mock AI model.")
+            self.ai_model = MagicMock()
+        else:
+            self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
         self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph, socketio=self.socketio, testing=self.testing)
 
         # Added robust encoding and error handling
@@ -67,8 +72,6 @@ class WebAgent:
 
         # Initialize LangChain tools
         self.tools = [
-            FindElementWithVisionTool(browser=self.browser, ai_model=self.ai_model),
-            AnalyzeVisualLayoutTool(browser=self.browser, ai_model=self.ai_model),
             GoToPageTool(controller=self.browser),
             NavigateToURLTool(controller=self.browser),
             ClickElementTool(controller=self.browser),
@@ -86,6 +89,12 @@ class WebAgent:
             UpsertInMemoryTool(memory=self.working_memory),
             FinishTool()
         ]
+
+        if not self.testing:
+            self.tools.extend([
+                FindElementWithVisionTool(browser=self.browser, ai_model=self.ai_model),
+                AnalyzeVisualLayoutTool(browser=self.browser, ai_model=self.ai_model),
+            ])
 
         if self.clarification_request_queue and self.clarification_response_queue:
             self.tools.append(AskUserForClarificationTool(
