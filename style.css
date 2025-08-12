@@ -186,6 +186,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative; /* For overlay positioning */
 }
 
 #browser-iframe {
@@ -441,4 +442,48 @@ input:checked + .slider:before {
 
 #record-btn.recording {
     background-color: #ff4500;
+}
+
+/* Agent's View Overlay */
+.agent-view-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    display: none; /* Initially hidden */
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    cursor: pointer; /* To indicate it can be clicked to close */
+}
+
+.agent-view-overlay img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border: 2px solid var(--accent-color);
+    border-radius: 5px;
+}
+
+.action-highlight {
+    position: absolute;
+    background-color: rgba(255, 255, 0, 0.4); /* Default: semi-transparent yellow for clicks */
+    border: 2px solid #FFFF00;
+    border-radius: 3px;
+    z-index: 20; /* Above the screenshot image */
+    pointer-events: none; /* Don't intercept mouse events */
+    animation: fade-out 1.5s ease-out forwards;
+}
+
+@keyframes fade-out {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.1);
+    }
 }

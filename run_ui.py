@@ -45,7 +45,7 @@ clarification_response_queue = Queue()
 is_recording = False
 recorded_events = []
 
-def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event):
+def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event, socketio_instance):
     """Runs the agent task in a separate thread."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -56,7 +56,8 @@ def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event
             clarification_request_queue=req_q,
             clarification_response_queue=res_q,
             paused_event=paused_event,
-            stopped_event=stopped_event
+            stopped_event=stopped_event,
+            socketio=socketio_instance
         ))
     except Exception as e:
         print(f"Agent task failed with exception: {e}")
@@ -152,7 +153,7 @@ def handle_start_agent(json_data):
     # Start the agent in a new thread
     agent_thread = threading.Thread(
         target=run_agent_in_background,
-        args=(objective, clarification_request_queue, clarification_response_queue, agent_paused, agent_stopped)
+        args=(objective, clarification_request_queue, clarification_response_queue, agent_paused, agent_stopped, socketio)
     )
     agent_thread.start()
 
