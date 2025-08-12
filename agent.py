@@ -298,6 +298,13 @@ class WebAgent:
 
                 print(f"[ACTION] Tool: {tool_name}, Params: {params}, Confidence: {confidence_score}, Thought: {thought}")
 
+                is_valid = await self.ai_model.validate_action(self.objective, page_description, action_json)
+                if not is_valid:
+                    print(f"[VALIDATION] Action '{tool_name}' deemed invalid by the fast model. Skipping.")
+                    self.last_action_result = "Action was deemed invalid by the validator."
+                    self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+                    continue
+
                 # Adaptive Risk-Taking
                 if confidence_score < 0.6:
                     print(f"[WARN] Low confidence score ({confidence_score}). Asking user for clarification.")
