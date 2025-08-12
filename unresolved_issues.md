@@ -2,6 +2,8 @@
 
 This document outlines a list of outstanding issues, unimplemented features, and areas for improvement identified during a codebase review. It is intended to be used by a future software agent to prioritize and address these items.
 
+*Note: This is a technical document intended for developers. For a high-level summary of the project's current status, please see the "Current Status & Known Issues" section in the main [`README.md`](README.md).*
+
 ## 1. Unimplemented & "Headless" Features
 
 This section details features that are present in the UI or code but lack a complete backend implementation.
