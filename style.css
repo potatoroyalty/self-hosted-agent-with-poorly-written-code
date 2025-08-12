@@ -373,6 +373,12 @@ input:checked + .slider:before {
     background-color: var(--accent-color-hover);
 }
 
+#script-editor-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
 .code-editor {
     flex-grow: 1;
     background-color: var(--code-editor-bg-color);
@@ -381,6 +387,87 @@ input:checked + .slider:before {
     padding: 15px;
     font-family: "SF Mono", "Courier New", Courier, monospace;
     color: var(--code-editor-text-color);
+    overflow-y: auto;
+}
+
+.generator-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+    background-color: var(--secondary-bg-color);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.generator-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.generator-form label {
+    font-weight: bold;
+    color: var(--secondary-text-color);
+}
+
+.generator-form input[type="text"],
+.generator-form textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+    font-family: inherit;
+    font-size: 1em;
+}
+
+.generator-form textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Logs View */
+#logs-view {
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    gap: 20px;
+}
+
+#logs-view h2 {
+    font-size: 1.4em;
+    color: var(--primary-text-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 0;
+}
+
+.log-container {
+    background-color: var(--secondary-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.log-container h3 {
+    font-size: 1.1em;
+    color: var(--secondary-text-color);
+}
+
+.log-content {
+    background-color: var(--code-editor-bg-color);
+    color: var(--code-editor-text-color);
+    padding: 15px;
+    border-radius: 5px;
+    white-space: pre-wrap; /* Wrap long lines */
+    word-break: break-all; /* Break long words */
+    font-family: "SF Mono", "Courier New", Courier, monospace;
+    max-height: 400px; /* Limit height and make scrollable */
     overflow-y: auto;
 }
 

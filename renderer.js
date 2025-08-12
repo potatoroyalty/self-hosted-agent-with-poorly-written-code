@@ -247,6 +247,28 @@ document.addEventListener('DOMContentLoaded', () => {
     logsLink.addEventListener('click', (e) => {
         e.preventDefault();
         switchView(logsView, logsLink);
+
+        // Fetch and display log content when the view is switched to
+        async function fetchLog(logType, elementId) {
+            const element = document.getElementById(elementId);
+            try {
+                const response = await fetch(`/get_log_content/${logType}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${logType} log: ${response.statusText}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                element.textContent = data.content || '(empty)';
+            } catch (error) {
+                console.error(`Error loading ${logType} log:`, error);
+                element.textContent = `Error loading log: ${error.message}`;
+            }
+        }
+
+        fetchLog('critique', 'critique-log-content');
+        fetchLog('memory', 'memory-log-content');
     });
 
     settingsLink.addEventListener('click', (e) => {
@@ -273,11 +295,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Generator View Logic ---
     const generateScriptBtn = document.getElementById('generate-script-btn');
+    const scriptNameInput = document.getElementById('script-name-input');
+    const scriptObjectiveInput = document.getElementById('script-objective-input');
+    const scriptEditor = document.getElementById('script-editor');
+
     generateScriptBtn.addEventListener('click', () => {
-        console.log('Generate Script button clicked.');
-        // In a real implementation, this would trigger a call to the backend
-        // to generate a script based on recorded actions or other inputs.
-        alert('Script generation is not fully implemented yet.');
+        const scriptName = scriptNameInput.value.trim();
+        const objective = scriptObjectiveInput.value.trim();
+
+        if (!scriptName || !objective) {
+            alert('Please provide both a script name and an objective.');
+            return;
+        }
+
+        console.log(`Requesting script generation for name: '${scriptName}' and objective: '${objective}'`);
+        // Show a loading message in the editor
+        scriptEditor.innerHTML = '<p>Generating script... Please wait.</p>';
+
+        socket.emit('generate_script', {
+            script_name: scriptName,
+            objective: objective
+        });
+    });
+
+    socket.on('script_generated', (data) => {
+        console.log('Received generated script from server.');
+        if (data.success) {
+            // Display the generated script in the editor
+            // We'll use a simple <pre> tag to preserve formatting.
+            // A more advanced implementation would use a real code editor library like CodeMirror or Monaco.
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            code.textContent = data.script_content;
+            pre.appendChild(code);
+            scriptEditor.innerHTML = ''; // Clear previous content
+            scriptEditor.appendChild(pre);
+
+            // Notify the user
+            alert(`Script '${data.script_name}' generated successfully!`);
+
+            // Refresh the script list in the Browser view
+            socket.emit('request_script_list');
+
+        } else {
+            scriptEditor.innerHTML = `<p class="error">Error generating script: ${data.error}</p>`;
+            alert(`Error generating script: ${data.error}`);
+        }
+    });
+
+    socket.on('request_script_list', () => {
+        // This is a simple way to trigger a refresh of the script list.
+        // The server should handle the 'request_script_list' event and send back a 'script_list' event.
+         console.log('Requesting updated script list from server.');
     });
 
     // --- Browser Control Logic ---

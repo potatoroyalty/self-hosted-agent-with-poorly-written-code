@@ -300,9 +300,14 @@ class AskUserForClarificationTool(BaseTool):
     clarification_response_queue: Queue
 
     def _run(self, world_model: str, potential_actions: List[str]) -> str:
-        """Asks the user for clarification and waits for their response."""
+        """Synchronously runs the async version of the tool."""
+        return asyncio.run(self._arun(world_model, potential_actions))
+
+    async def _arun(self, world_model: str, potential_actions: List[str]) -> str:
+        """Asks the user for clarification and waits for their response using asyncio."""
         try:
             # Unique identifier for this request
+            # Using threading.get_ident() is fine even in asyncio as it's just a unique ID
             request_id = threading.get_ident()
 
             # Package the request
@@ -312,12 +317,11 @@ class AskUserForClarificationTool(BaseTool):
                 "potential_actions": potential_actions
             }
 
-            # Send the request to the UI thread
-            self.clarification_request_queue.put(request)
+            # Send the request to the UI thread. put() is thread-safe and non-blocking in this context.
+            await asyncio.to_thread(self.clarification_request_queue.put, request)
 
-            # Wait for the response from the UI thread
-            # This will block the agent's execution until the user responds
-            response = self.clarification_response_queue.get() # This assumes a 1:1 request/response flow
+            # Wait for the response from the UI thread in a non-blocking way
+            response = await asyncio.to_thread(self.clarification_response_queue.get)
 
             if response.get("request_id") != request_id:
                 # This is a fallback for a more complex scenario, for now we assume 1:1
@@ -332,11 +336,6 @@ class AskUserForClarificationTool(BaseTool):
 
         except Exception as e:
             return f"An error occurred while asking for clarification: {e}"
-
-    async def _arun(self, world_model: str, potential_actions: List[str]) -> str:
-        # For now, we'll just use the synchronous implementation
-        # In a more advanced setup, we could use asyncio events
-        return self._run(world_model, potential_actions)
 
 class UpsertInMemoryInput(BaseModel):
     key: str = Field(description="The key to add or update in the working memory.")

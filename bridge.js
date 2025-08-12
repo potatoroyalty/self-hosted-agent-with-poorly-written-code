@@ -69,6 +69,7 @@
             selector: selector,
             value: event.target.value,
             inputValue: event.type === 'input' ? event.target.value : undefined,
+            key: event.type === 'keydown' ? event.key : undefined,
             tagName: event.target.tagName.toLowerCase(),
             timestamp: Date.now()
         };
@@ -179,6 +180,9 @@
                             box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
                             tag: el.tagName.toLowerCase(),
                             aria_label: el.getAttribute('aria-label'),
+                            name: el.name,
+                            text: el.innerText,
+                            value: el.value,
                             href: el.href, // Will be undefined for non-links, which is fine
                         };
                     }
@@ -236,5 +240,7 @@
     document.addEventListener('input', recordEvent, { capture: true });
     document.addEventListener('change', recordEvent, { capture: true });
     document.addEventListener('submit', recordEvent, { capture: true });
+    document.addEventListener('keydown', recordEvent, { capture: true });
+    document.addEventListener('scroll', recordEvent, { capture: true });
 
 })();

@@ -456,6 +456,7 @@ Labeled elements provided:
 
         # Your Task
         Generate a single, executable JSON action object for the FIRST step of the plan.
+        If your confidence_score for the primary action is below 0.7, you MUST also include a 'potential_actions' key, which is a list of up to 3 other distinct and reasonable actions you could take.
         """
 
         messages = [
@@ -474,12 +475,22 @@ Labeled elements provided:
             if not json_match:
                 raise ValueError("No valid JSON action found")
             json_str = json_match.group(1) or json_match.group(2)
-            return json.loads(json_str.strip())
+            action_json = json.loads(json_str.strip())
+
+            # Ensure potential_actions is a list if it exists, otherwise default to empty list
+            if 'potential_actions' in action_json and not isinstance(action_json['potential_actions'], list):
+                action_json['potential_actions'] = []
+
+            return action_json
+
         except Exception as e:
             print(f"[ERROR] Failed to parse tactical action: {e}")
             return {
-                "action_type": "pause_for_user",
-                "details": {"instruction_to_user": "Failed to generate valid action. Will retry."}
+                "tool": "pause_for_user",
+                "params": {"instruction_to_user": "Failed to generate valid action. Will retry."},
+                "confidence_score": 0.0,
+                "thought": "I encountered an error while trying to parse the tactical action from my own response.",
+                "potential_actions": []
             }
 
     async def generate_macro_script(self, objective: str, tool_definitions: str, tool_name: str, class_name: str) -> str:
@@ -518,6 +529,52 @@ Generated Python script:
             return match.group(1)
         else:
             # Fallback to returning the whole response, but try to clean it
+            if response_text.startswith("```python"):
+                response_text = response_text[len("```python"):]
+            if response_text.endswith("```"):
+                response_text = response_text[:-len("```")]
+            return response_text
+
+    async def generate_script_from_recording(self, recorded_events: list, objective: str, tool_name: str, class_name: str, tool_definitions: str) -> str:
+        """
+        Generates a Python script for a macro tool based on a user's recording and objective.
+        """
+        # Convert recorded events to a more readable format for the prompt
+        formatted_events = "\n".join([f"- {event['type'].upper()} on element '{event['selector']}'" + (f" with value '{event['value']}'" if 'value' in event and event['value'] else "") for event in recorded_events])
+
+        prompt = f"""
+You are a script-generating AI. Your task is to create a Python script that defines a new LangChain tool. This new tool will automate a task based on a provided recording of user actions and a high-level objective.
+
+The user performed the following actions:
+<recording>
+{formatted_events}
+</recording>
+
+The user's objective for this script is: "{objective}"
+
+Based on the recording and the objective, generate a Python script that creates a new tool class named `{class_name}` which inherits from `MacroTool`. The tool's `name` attribute must be `{tool_name}`.
+
+The script should contain a sequence of calls to the basic tools available to the agent. Here are the available tools:
+{tool_definitions}
+
+Important Rules:
+1.  Analyze the user's recorded actions and generalize them. Do not simply copy the selectors one-to-one, as they might be brittle. Instead, use tools like `find_elements_by_text` when appropriate to make the script more robust.
+2.  The generated script must only contain the Python code for the tool, enclosed in ```python ... ```.
+3.  The class must implement the `_arun` method as a coroutine (async def).
+
+Generated Python script:
+"""
+        messages = [
+            HumanMessage(content=prompt)
+        ]
+        response = await self.scripter_model.agenerate(messages=messages)
+        response_text = response.generations[0].message.content.strip()
+
+        # Extract the python script from the response
+        match = re.search(r"```python\s*(.*?)\s*```", response_text, re.DOTALL)
+        if match:
+            return match.group(1)
+        else:
             if response_text.startswith("```python"):
                 response_text = response_text[len("```python"):]
             if response_text.endswith("```"):

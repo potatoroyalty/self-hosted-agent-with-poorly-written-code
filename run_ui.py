@@ -45,6 +45,19 @@ clarification_response_queue = Queue()
 is_recording = False
 recorded_events = []
 
+# --- AI Model ---
+# We initialize the AIModel here to be accessible by the script generator.
+# This avoids re-initializing the model on every request.
+# In a production scenario, you might use a more sophisticated dependency injection pattern.
+try:
+    from ai_model import AIModel
+    ai_model_instance = AIModel()
+except Exception as e:
+    print(f"[FATAL ERROR] Could not initialize AIModel: {e}")
+    print("The script generation feature will be disabled.")
+    ai_model_instance = None
+
+
 def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event, socketio_instance):
     """Runs the agent task in a separate thread."""
     loop = asyncio.new_event_loop()
@@ -81,6 +94,26 @@ def serve_static(path):
 def get_settings():
     """Route to provide the current settings to the frontend."""
     return jsonify(config.get_config())
+
+@app.route('/get_log_content/<log_type>')
+def get_log_content(log_type):
+    """Route to provide the content of a specific log file."""
+    if log_type == 'critique':
+        log_file = config.CRITIQUE_FILE
+    elif log_type == 'memory':
+        log_file = config.MEMORY_FILE
+    else:
+        return jsonify({"error": "Invalid log type"}), 400
+
+    try:
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            return jsonify({"content": content})
+        else:
+            return jsonify({"content": f"{log_file} not found."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # --- SocketIO Event Handlers ---
 def get_scripts():
@@ -200,6 +233,88 @@ def handle_update_config(json_data):
         emit('response', {'data': f"Configuration '{key}' updated to '{value}'."})
 
 # --- Recording Event Handlers ---
+
+@socketio.on('generate_script')
+def handle_generate_script(json_data):
+    """Handles a request to generate a script from a recording."""
+    global recorded_events, ai_model_instance
+    script_name = json_data.get('script_name')
+    objective = json_data.get('objective')
+
+    if not script_name or not objective:
+        emit('script_generated', {'success': False, 'error': 'Script name and objective are required.'})
+        return
+
+    if not recorded_events:
+        emit('script_generated', {'success': False, 'error': 'No recorded actions to generate a script from.'})
+        return
+
+    if not ai_model_instance:
+        emit('script_generated', {'success': False, 'error': 'AI Model is not available.'})
+        return
+
+    print(f"Generating script '{script_name}' for objective: {objective}")
+
+    try:
+        # This needs to be run in an async context
+        async def generate():
+            # Sanitize to create a valid class name
+            class_name = f"{script_name.replace('_', ' ').title().replace(' ', '')}MacroTool"
+            tool_name = script_name
+
+            # We need the tool definitions for the prompt
+            # This is a simplification; in a real app, you'd have a more robust way to get this
+            from langchain_agent import GoToPageTool, ClickElementTool, TypeTextTool
+            tool_definitions = "\n".join([f"- {tool.name}: {tool.description}" for tool in [GoToPageTool, ClickElementTool, TypeTextTool]])
+
+            return await ai_model_instance.generate_script_from_recording(
+                recorded_events,
+                objective,
+                tool_name,
+                class_name,
+                tool_definitions
+            )
+
+        script_content = asyncio.run(generate())
+
+        if not script_content:
+            emit('script_generated', {'success': False, 'error': 'AI failed to generate script content.'})
+            return
+
+        # Save the script
+        scripts_dir = os.path.join(project_root, 'scripts')
+        if not os.path.exists(scripts_dir):
+            os.makedirs(scripts_dir)
+
+        # Sanitize script_name to be a valid filename
+        safe_script_name = "".join(c for c in script_name if c.isalnum() or c in ('_', '-')).rstrip()
+        file_path = os.path.join(scripts_dir, f"{safe_script_name}.py")
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(script_content)
+
+        print(f"Script saved to {file_path}")
+
+        emit('script_generated', {
+            'success': True,
+            'script_name': script_name,
+            'script_content': script_content
+        })
+
+    except Exception as e:
+        error_msg = f"Failed to generate script: {e}"
+        print(f"[ERROR] {error_msg}")
+        emit('script_generated', {'success': False, 'error': str(e)})
+
+
+@socketio.on('request_script_list')
+def handle_request_script_list():
+    """Handles a request to get the list of scripts."""
+    print("[INFO] Client requested script list refresh.")
+    scripts = get_scripts()
+    emit('script_list', {'scripts': scripts})
+
+
 @socketio.on('start_recording')
 def handle_start_recording():
     global is_recording, recorded_events
@@ -274,10 +389,10 @@ def stream_status():
 
         status_data = {
             'status': agent_status,
-            'ip': '127.0.0.1', # Placeholder
-            'user_agent': 'Default', # Placeholder
-            'speed': 'Normal', # Placeholder
-            'stealth': 'ON' # Placeholder
+            'ip': config.get_setting('PROXY_ADDRESS') if config.get_setting('USE_PROXY') else '127.0.0.1',
+            'user_agent': config.get_setting('USER_AGENT'),
+            'speed': f"{config.get_setting('WAIT_BETWEEN_ACTIONS')}s delay",
+            'stealth': 'ON' if config.get_setting('STEALTH_MODE') else 'OFF'
         }
         socketio.emit('status_update', status_data)
         socketio.sleep(2) # Update status every 2 seconds
