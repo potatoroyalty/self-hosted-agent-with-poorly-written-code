@@ -13,33 +13,35 @@ This project is an AI-powered web agent that can navigate and interact with webs
 *   **Self-Critique and Learning**: After each run, the agent reflects on its performance and generates self-critiques to improve its decision-making in future runs.
 *   **Local First**: Runs entirely on your local machine, ensuring privacy and control over your data. Requires a running Ollama instance.
 
+## Current Status & Known Issues
+
+This project is under active development, and several features in the UI are not yet fully implemented. For example, the "Record New Script" functionality and several UI controls are placeholders. The core agent logic is functional for autonomous browsing, but may not be able to complete all complex tasks.
+
+We are continuously working on improving the agent and implementing these features. For a detailed list of unimplemented features and known issues, please see [`unresolved_issues.md`](unresolved_issues.md).
+
 ## How It Works
 
-The agent operates in a sophisticated loop, moving beyond simple "observe and act" cycles. It leverages a multi-layered architecture to reason, plan, and execute tasks.
+The agent uses a custom-built, multi-layered architecture to reason, plan, and execute tasks. It does **not** use an off-the-shelf agent framework like LangChain's ReAct agent, but it does use LangChain's `BaseTool` class to structure its tools.
 
 ### Architecture Overview
 
-The agent's workflow can be broken down into these main phases:
+The agent's workflow is managed by the `WebAgent` class in `agent.py` and can be broken down into these main phases:
 
-1.  **Observe**: The agent captures a screenshot of the current web page and annotates it with labels for all interactive elements.
-2.  **Strategize**: Using a "supervisor" AI model, the agent analyzes its objective, memory, and the current page to form a high-level strategic plan. This involves reflecting on its progress and updating its internal "world model."
-3.  **Execute**: For each step in the strategic plan, the agent uses a "tactical" AI model to select the best tool and parameters (e.g., which element to click). It uses vision to match the plan step to the visual layout of the page.
-4.  **Learn**: After each run, the agent performs a self-critique to identify areas for improvement. It also saves successful action sequences as "strategies" that can be reused later.
-
-This entire process is supported by a set of core components that manage state, control the browser, and interact with the AI models.
+1.  **Observe**: The agent captures a screenshot of the current web page and uses the `BrowserController` to annotate it with labels for all interactive elements.
+2.  **Strategize**: A "supervisor" AI model (managed by `ai_model.py`) analyzes the objective, conversation history, and the current page to form a high-level strategic plan. This involves reflecting on its progress and updating its internal "world model" (managed by `working_memory.py`).
+3.  **Execute**: For each step in the plan, a "tactical" AI model selects the best tool and parameters (e.g., which element to click). The `WebAgent` then executes this tool, which can range from clicking an element to asking the user for clarification.
+4.  **Learn**: After each run, the agent performs a self-critique and saves successful action sequences as "strategies" in `strategies.json`.
 
 ### Core Components
 
-*   `agent.py`: The central orchestrator. It manages the main loop, coordinates all other components, and executes the agent's lifecycle.
-*   `run_ui.py`: A Flask and SocketIO-based web server that provides an interactive user interface for running the agent, viewing logs, and providing real-time feedback.
-*   `ai_model.py`: Handles all communication with the Ollama AI models. It is responsible for generating strategic plans, selecting tactical actions, and performing self-critique. It uses "constitutions" to guide the AI's reasoning process.
-*   `constitution.py`: Contains the templates for the system prompts (or "constitutions") that guide the AI models' behavior, ensuring they adhere to a specific role and format.
-*   `browser_controller.py`: A wrapper around the Playwright library that provides a high-level API for controlling the web browser. It handles tasks like navigating to pages, taking screenshots, and interacting with elements.
-*   `working_memory.py`: Manages the agent's short-term memory for a single run. It tracks the history of actions, observations, and reflections.
-*   `vision_tools.py`: A set of tools that allow the agent to analyze visual information from screenshots, such as finding elements based on a visual description.
-*   `website_graph.py`: Builds and maintains a graph representation of the websites the agent visits, mapping the connections between pages. This is saved in `website_graph.json`.
-*   `strategy_manager.py`: Saves and retrieves successful sequences of actions (strategies) for specific tasks and websites. This allows the agent to learn from experience and is stored in `strategies.json`.
-*   `config.py`: A centralized file for all major configuration options, such as which AI models to use and whether to run the browser in headless mode.
+*   `agent.py`: The central orchestrator. It contains the `WebAgent` class that runs the main agent loop, coordinates all other components, and executes the agent's lifecycle.
+*   `langchain_agent.py`: This file **does not contain the agent**. Instead, it defines the library of tools (e.g., `ClickElementTool`, `TypeTextTool`) that the agent can use. These tools are built using LangChain's `BaseTool` class for a standardized structure.
+*   `run_ui.py`: A Flask and SocketIO-based web server that provides an interactive user interface for running the agent.
+*   `ai_model.py`: Handles all communication with the Ollama AI models. It is responsible for generating strategic plans, selecting tactical actions, and performing self-critique.
+*   `browser_controller.py`: A wrapper around Playwright that provides a high-level API for controlling the web browser.
+*   `working_memory.py`: Manages the agent's short-term memory for a single run.
+*   `vision_tools.py`: A set of tools that allow the agent to analyze visual information from screenshots.
+*   `config.py`: A centralized file for all major configuration options.
 
 ## Getting Started
 
