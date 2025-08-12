@@ -19,6 +19,14 @@ from langchain_agent import (
 from vision_tools import FindElementWithVisionTool, AnalyzeVisualLayoutTool
 import config
 
+# Pydantic's model_rebuild() is used to resolve forward references
+# in type hints. This is necessary because FindElementWithVisionTool
+# and AnalyzeVisualLayoutTool have a forward reference to BrowserController.
+# By calling model_rebuild() after all relevant classes are imported,
+# we ensure that Pydantic can correctly link the classes together.
+FindElementWithVisionTool.model_rebuild()
+AnalyzeVisualLayoutTool.model_rebuild()
+
 class WebAgent:
     def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None):
         self.objective = objective
