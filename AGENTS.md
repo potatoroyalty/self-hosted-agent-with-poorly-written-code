@@ -15,12 +15,17 @@ It is important to distinguish between the agent you are currently operating as 
 
 Your purpose is to build and improve the features of the local agent.
 
-## Testing Limitation
+## Testing and Verification
 
-The full test suite and application functionality depend on a properly configured and running Ollama instance. As an AI agent, you are unable to set up and run this local environment.
+The full test suite and application functionality depend on a properly configured and running Ollama instance. As a coding agent, you do not have access to this environment.
 
 **Action Required:**
 
-Do not attempt to run tests or the application. Leave the testing and execution of the application to the user who has the required local setup. Focus on code-related tasks that do not require running the application, such as code analysis, refactoring, and documentation.
+To have your changes tested and verified, you must push them to a branch on GitHub. The user will then run the application and tests from that branch.
 
-Additionally, the development environment has limitations when it comes to running and verifying long-running processes, such as the web server (`run_ui.py`). Attempts to run these processes in the background can cause the shell session to become unresponsive. Therefore, verification of features that require the server to be running must be left to the user. This is especially relevant for UI-related changes, which you cannot visually inspect or interact with.
+1.  Complete your code changes.
+2.  Request a code review using the `request_code_review` tool.
+3.  Address any feedback from the review.
+4.  Submit your changes using the `submit` tool. This will create a new branch on GitHub for the user to test.
+
+Do not attempt to run the application or tests yourself.
