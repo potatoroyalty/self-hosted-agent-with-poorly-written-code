@@ -183,8 +183,8 @@ class AIModel:
         messages = [HumanMessage(content=prompt)]
 
         try:
-            response = await self.supervisor_model.agenerate(messages=messages)
-            response_text = response.generations[0].message.content
+            response = await self.supervisor_model.agenerate(messages=[messages])
+            response_text = response.generations[0][0].message.content
 
             json_match = re.search(r"```json\s*({{.*?}})\s*```|({{.*}})", response_text, re.DOTALL)
             if not json_match:
@@ -227,8 +227,8 @@ class AIModel:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=messages)
-        return response.generations[0].message.content.strip()
+        response = await self.vision_model.agenerate(messages=[messages])
+        return response.generations[0][0].message.content.strip()
 
     async def analyze_layout(self, encoded_image: str, question: str) -> str:
         """
@@ -249,8 +249,8 @@ class AIModel:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=messages)
-        return response.generations[0].message.content.strip()
+        response = await self.vision_model.agenerate(messages=[messages])
+        return response.generations[0][0].message.content.strip()
 
     async def get_page_description(self, encoded_image, labeled_elements):
         element_texts = []
@@ -281,8 +281,8 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=messages)
-        return response.generations[0].message.content.strip()
+        response = await self.vision_model.agenerate(messages=[messages])
+        return response.generations[0][0].message.content.strip()
 
     async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image, working_memory):
         prompt = f"""
@@ -316,8 +316,8 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.main_model.agenerate(messages=messages)
-        response_text = response.generations[0].message.content
+        response = await self.main_model.agenerate(messages=[messages])
+        response_text = response.generations[0][0].message.content
 
         try:
             # Use a more robust regex to find the JSON block, even with markdown wrappers
@@ -361,8 +361,8 @@ Labeled elements provided:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.fast_model.agenerate(messages=messages)
-        decision = response.generations[0].message.content.strip().lower()
+        response = await self.fast_model.agenerate(messages=[messages])
+        decision = response.generations[0][0].message.content.strip().lower()
         print(f"[VALIDATION] AI proposed action: {json.dumps(proposed_action_json)}. Validator response: {decision}")
         return "true" in decision
 
@@ -397,8 +397,8 @@ Labeled elements provided:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.fast_model.agenerate(messages=messages)
-        return response.generations[0].message.content.strip()
+        response = await self.fast_model.agenerate(messages=[messages])
+        return response.generations[0][0].message.content.strip()
 
     async def get_strategic_plan(self, objective, history, page_description, self_critique):
         """First step of the cognitive cycle - generates high-level plan based on structured page data."""
@@ -426,8 +426,8 @@ Labeled elements provided:
         ]
         text_model = self.main_model # if "llava" not in self.main_model_name else self.fast_model
         
-        response = await text_model.agenerate(messages=messages)
-        response_text = response.generations[0].message.content
+        response = await text_model.agenerate(messages=[messages])
+        response_text = response.generations[0][0].message.content
 
         try:
             json_match = re.search(r"```json\s*({{.*?}})\s*```|({{.*}})", response_text, re.DOTALL)
@@ -467,8 +467,8 @@ Labeled elements provided:
                 ]
             )
         ]
-        response = await self.vision_model.agenerate(messages=messages)
-        response_text = response.generations[0].message.content
+        response = await self.vision_model.agenerate(messages=[messages])
+        response_text = response.generations[0][0].message.content
 
         try:
             json_match = re.search(r"```json\s*({{.*?}})\s*```|({{.*}})", response_text, re.DOTALL)
@@ -520,8 +520,8 @@ Generated Python script:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.scripter_model.agenerate(messages=messages)
-        response_text = response.generations[0].message.content.strip()
+        response = await self.scripter_model.agenerate(messages=[messages])
+        response_text = response.generations[0][0].message.content.strip()
 
         # Extract the python script from the response
         match = re.search(r"```python\s*(.*?)\s*```", response_text, re.DOTALL)
@@ -567,8 +567,8 @@ Generated Python script:
         messages = [
             HumanMessage(content=prompt)
         ]
-        response = await self.scripter_model.agenerate(messages=messages)
-        response_text = response.generations[0].message.content.strip()
+        response = await self.scripter_model.agenerate(messages=[messages])
+        response_text = response.generations[0][0].message.content.strip()
 
         # Extract the python script from the response
         match = re.search(r"```python\s*(.*?)\s*```", response_text, re.DOTALL)
