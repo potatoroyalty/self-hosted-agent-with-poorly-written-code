@@ -188,6 +188,12 @@ body {
     justify-content: center;
 }
 
+#browser-iframe {
+    width: 100%;
+    height: 100%;
+    border: none; /* Optional: to remove the default iframe border */
+}
+
 .browser-window p {
     color: var(--browser-window-text-color);
     font-size: 1.5em;
