@@ -28,13 +28,14 @@ FindElementWithVisionTool.model_rebuild()
 AnalyzeVisualLayoutTool.model_rebuild()
 
 class WebAgent:
-    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None):
+    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None, socketio=None):
         self.objective = objective
         self.start_url = start_url
         self.clarification_request_queue = clarification_request_queue
         self.clarification_response_queue = clarification_response_queue
         self.paused_event = paused_event
         self.stopped_event = stopped_event
+        self.socketio = socketio
         self.memory_file = memory_file
         self.critique_file = critique_file
         self.memory = []
@@ -49,7 +50,7 @@ class WebAgent:
         self.strategy_manager = StrategyManager(config.STRATEGY_FILE_PATH)
         self.strategy_callback_handler = StrategyCallbackHandler()
         self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
-        self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph)
+        self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph, socketio=self.socketio)
 
         # Added robust encoding and error handling
         if os.path.exists(self.memory_file):

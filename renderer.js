@@ -167,6 +167,24 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.status-bar span:nth-child(5)').textContent = `Stealth: ${data.stealth}`;
     });
 
+    socket.on('browser_navigated', (data) => {
+        const browserIframe = document.getElementById('browser-iframe');
+        const urlBar = document.getElementById('url-bar');
+        console.log(`[SOCKETS] Received 'browser_navigated' event. URL: ${data.url}`);
+        if (browserIframe.src !== data.url) {
+            browserIframe.src = data.url;
+        }
+        urlBar.value = data.url;
+    });
+
+    socket.on('agent_view_updated', (data) => {
+        const overlay = document.getElementById('agent-view-overlay');
+        const overlayImage = document.getElementById('agent-view-image');
+        console.log('[SOCKETS] Received agent_view_updated event. Displaying annotated screenshot.');
+        overlayImage.src = `data:image/png;base64,${data.image}`;
+        overlay.style.display = 'flex';
+    });
+
     const views = document.querySelectorAll('.view');
     const navLinks = document.querySelectorAll('.nav-link');
 
@@ -263,6 +281,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Browser Control Logic ---
+    const agentViewOverlay = document.getElementById('agent-view-overlay');
+    agentViewOverlay.addEventListener('click', () => {
+        agentViewOverlay.style.display = 'none'; // Hide on click
+    });
+
+    socket.on('action_executed', (data) => {
+        const overlay = document.getElementById('agent-view-overlay');
+        if (overlay.style.display === 'flex' && data.box) {
+            const overlayImg = document.getElementById('agent-view-image');
+            if (!overlayImg.naturalWidth) {
+                // Image hasn't loaded yet, can't calculate scale.
+                return;
+            }
+
+            console.log(`[SOCKETS] Highlighting action '${data.action}' at`, data.box);
+
+            const highlight = document.createElement('div');
+            highlight.className = 'action-highlight';
+
+            const imgRect = overlayImg.getBoundingClientRect();
+            const overlayRect = overlay.getBoundingClientRect();
+
+            const scaleX = imgRect.width / overlayImg.naturalWidth;
+            const scaleY = imgRect.height / overlayImg.naturalHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            const imgX = imgRect.left - overlayRect.left + (imgRect.width - (overlayImg.naturalWidth * scale)) / 2;
+            const imgY = imgRect.top - overlayRect.top + (imgRect.height - (overlayImg.naturalHeight * scale)) / 2;
+
+            highlight.style.left = `${(data.box.x * scale) + imgX}px`;
+            highlight.style.top = `${(data.box.y * scale) + imgY}px`;
+            highlight.style.width = `${data.box.width * scale}px`;
+            highlight.style.height = `${data.box.height * scale}px`;
+
+            if (data.action === 'type') {
+                highlight.style.backgroundColor = 'rgba(144, 238, 144, 0.4)';
+                highlight.style.borderColor = '#90EE90';
+            }
+
+            overlay.appendChild(highlight);
+
+            setTimeout(() => {
+                highlight.remove();
+            }, 1500);
+        }
+    });
+
     const browserIframe = document.getElementById('browser-iframe');
     const urlBar = document.getElementById('url-bar');
     const backBtn = document.getElementById('back-btn');

@@ -15,12 +15,13 @@ class BrowserController:
     A controller for managing a Playwright browser instance,
     handling page interactions, and annotating screenshots for an AI agent.
     """
-    def __init__(self, run_folder: str, agent=None, website_graph: Optional[WebsiteGraph] = None):
+    def __init__(self, run_folder: str, agent=None, website_graph: Optional[WebsiteGraph] = None, socketio=None):
         self.browser: Browser | None = None
         self.page: Page | None = None
         self.playwright = None
         self.run_folder = run_folder
         self.agent = agent
+        self.socketio = socketio
         self.recovery = ErrorRecovery(agent=self.agent) if self.agent else None
         self.website_graph = website_graph
         self.labeled_elements: List[ElementHandle] = []
@@ -82,6 +83,10 @@ class BrowserController:
         await page.goto(url if "://" in url else "http://" + url)
         to_url = page.url
         page_title = await page.title()
+
+        if self.socketio:
+            print(f"[SOCKETS] Emitting 'browser_navigated' event to UI. URL: {to_url}")
+            self.socketio.emit('browser_navigated', {'url': to_url})
 
         if self.website_graph:
             self.website_graph.add_page(from_url)
@@ -179,8 +184,20 @@ class BrowserController:
             )
             draw.text((label_x + padding, label_y + padding), label, fill="white", font=font)
 
+        # Save the annotated image to a buffer in memory
+        annotated_buffer = io.BytesIO()
+        img.save(annotated_buffer, format="PNG")
+        annotated_image_bytes = annotated_buffer.getvalue()
+
         # Save the final annotated image once for logging/review
-        img.save(screenshot_path)
+        with open(screenshot_path, "wb") as f:
+            f.write(annotated_image_bytes)
+
+        # Also send the annotated image to the UI via WebSocket
+        if self.socketio:
+            print("[SOCKETS] Emitting 'agent_view_updated' event to UI.")
+            encoded_annotated_image = base64.b64encode(annotated_image_bytes).decode('utf-8')
+            self.socketio.emit('agent_view_updated', {'image': encoded_annotated_image})
 
         # Encode the original, un-annotated image to base64 for the AI model
         encoded_image = base64.b64encode(screenshot_bytes).decode('utf-8')
@@ -261,6 +278,12 @@ class BrowserController:
                     return False, f"Action '{action_type}' failed: Invalid element_label '{element_label}'. There are only {len(self.labeled_elements)} labeled elements."
                 
                 element = self.labeled_elements[element_index]
+                box = await element.bounding_box()
+
+                if self.socketio and box:
+                    # Send coordinates to UI for visual feedback before the action
+                    print(f"[SOCKETS] Emitting 'action_executed' event for {action_type} on element {element_label}")
+                    self.socketio.emit('action_executed', {'action': action_type, 'box': box})
 
                 if action_type == "click":
                     page = self._get_page()
