@@ -5,7 +5,7 @@ import asyncio
 from agent import WebAgent
 import config
 
-async def run_agent_task(objective, url=config.DEFAULT_URL, model=config.MAIN_MODEL, supervisor_model=config.SUPERVISOR_MODEL, fast_model=config.FAST_MODEL, vision_model=config.VISION_MODEL, max_steps=config.MAX_STEPS, low_memory=False, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None):
+async def run_agent_task(objective, url=config.START_URL, model=config.MAIN_MODEL, supervisor_model=config.SUPERVISOR_MODEL, fast_model=config.FAST_MODEL, vision_model=config.VISION_MODEL, max_steps=config.MAX_STEPS, low_memory=False, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None):
     # Override models for low memory mode
     if low_memory or config.LOW_MEMORY_MODE:
         print("[INFO] Low memory mode enabled. Using smaller models.")
@@ -46,7 +46,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Run the professional Web Agent.")
     # MODIFIED: Make objective not required to work with the interactive batch script
     parser.add_argument("--objective", type=str, help="The main goal for the agent to achieve. If not provided, the script will prompt for it.")
-    parser.add_argument("--url", type=str, default=config.DEFAULT_URL, help="The optional starting URL for the agent.")
+    parser.add_argument("--url", type=str, default=config.START_URL, help="The optional starting URL for the agent.")
     parser.add_argument("--model", type=str, default=config.MAIN_MODEL, help="The main Ollama model for complex reasoning (e.g., 'llava:13b').")
     parser.add_argument("--supervisor-model", type=str, default=config.SUPERVISOR_MODEL, help="The Ollama model for high-level overview (e.g., 'llava:13b').")
     parser.add_argument("--fast-model", type=str, default=config.FAST_MODEL, help="A smaller, faster model for simple tasks like self-critique (e.g., 'llava:7b').")
