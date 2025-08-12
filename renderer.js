@@ -20,7 +20,8 @@ function openTab(evt, tabName) {
 // Handles view switching in the main content area
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
-    const loadingOverlay = document.getElementById('loading-overlay');
+    const agentStatusContainer = document.getElementById('agent-status-container');
+    const agentStatusText = document.getElementById('agent-status-text');
 
     socket.on('connect', () => {
         console.log('Connected to WebSocket server!');
@@ -45,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('clarification_request', (data) => {
         console.log('Clarification request from agent:', data);
         // If we get a clarification request, the agent is clearly not "done"
-        loadingOverlay.style.display = 'none';
+        agentStatusContainer.style.display = 'none';
         const container = document.getElementById('clarification-container');
 
         // Clear previous content
@@ -104,7 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function startAgent(objective, script = null) {
         if (objective) {
             console.log(`Starting agent with objective: ${objective}`);
-            loadingOverlay.style.display = 'flex';
+            agentStatusText.textContent = 'Agent Running';
+            agentStatusContainer.style.display = 'flex';
             startBtn.disabled = true;
             pauseBtn.disabled = false;
             stopBtn.disabled = false;
@@ -137,10 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const isPaused = pauseBtn.classList.toggle('paused');
         if (isPaused) {
             pauseBtn.textContent = 'Resume';
+            agentStatusText.textContent = 'Agent Paused';
             console.log('Pause button clicked. Pausing agent.');
             socket.emit('pause_agent');
         } else {
             pauseBtn.textContent = 'Pause';
+            agentStatusText.textContent = 'Agent Running';
             console.log('Resume button clicked. Resuming agent.');
             socket.emit('resume_agent');
         }
@@ -178,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('agent_finished', (data) => {
         console.log('Agent has finished its task.', data);
-        loadingOverlay.style.display = 'none';
+        agentStatusContainer.style.display = 'none';
         startBtn.disabled = false;
         pauseBtn.disabled = true;
         stopBtn.disabled = true;

@@ -68,10 +68,6 @@
             <div id="recording-banner" class="recording-banner" style="display: none;">
                 Recording... Perform the actions you want the agent to learn.
             </div>
-            <div id="loading-overlay" style="display: none;">
-                <div class="spinner"></div>
-                <p>Agent is running...</p>
-            </div>
             <div id="clarification-container" class="clarification-popup" style="display: none;"></div>
             <div id="browser-view" class="view">
                 <textarea id="instruction-input" placeholder="Enter your objective here... e.g., 'Log into my account on example.com'"></textarea>
@@ -409,6 +405,10 @@
         </aside>
 
         <footer class="status-bar">
+            <div id="agent-status-container" style="display: none;">
+                <div class="spinner-small"></div>
+                <span id="agent-status-text">Agent Running</span>
+            </div>
             <span>Status: Idle</span>
             <span>IP: 127.0.0.1</span>
             <span>User-Agent: Default</span>
