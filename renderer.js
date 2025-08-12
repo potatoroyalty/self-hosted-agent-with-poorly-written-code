@@ -356,6 +356,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const settings = await response.json();
             populateSettingsForm(settings);
+
+            // Automatically load the start URL in the browser view
+            if (settings.START_URL) {
+                navigateTo(settings.START_URL);
+            }
         } catch (error) {
             console.error('Error loading settings:', error);
             // Optionally, show an error message to the user
