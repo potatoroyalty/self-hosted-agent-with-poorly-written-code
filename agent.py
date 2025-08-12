@@ -20,11 +20,13 @@ from vision_tools import FindElementWithVisionTool, AnalyzeVisualLayoutTool
 import config
 
 class WebAgent:
-    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None):
+    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None):
         self.objective = objective
         self.start_url = start_url
         self.clarification_request_queue = clarification_request_queue
         self.clarification_response_queue = clarification_response_queue
+        self.paused_event = paused_event
+        self.stopped_event = stopped_event
         self.memory_file = memory_file
         self.critique_file = critique_file
         self.memory = []
@@ -174,6 +176,16 @@ class WebAgent:
 
         # Main loop
         for i in range(self.max_steps):
+            if self.stopped_event and self.stopped_event.is_set():
+                print("[INFO] Stop event received. Halting agent.")
+                break
+
+            if self.paused_event and self.paused_event.is_set():
+                print("[INFO] Pause event received. Waiting...")
+                while self.paused_event.is_set():
+                    await asyncio.sleep(1) # Check every second
+                print("[INFO] Agent resumed.")
+
             print(f"--- Step {i+1}/{self.max_steps} ---")
 
             # 1. Observe the page

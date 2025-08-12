@@ -80,6 +80,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const scriptSelector = document.getElementById('script-selector');
+
+    socket.on('script_list', (data) => {
+        const scripts = data.scripts || [];
+        // Clear existing options except the first one
+        scriptSelector.innerHTML = '<option value="">Select a script...</option>';
+        scripts.forEach(script => {
+            const option = document.createElement('option');
+            option.value = script;
+            option.textContent = script;
+            scriptSelector.appendChild(option);
+        });
+    });
+
+    scriptSelector.addEventListener('change', () => {
+        const selectedScript = scriptSelector.value;
+        if (selectedScript) {
+            console.log(`Selected script: ${selectedScript}`);
+            socket.emit('run_script', { script: selectedScript });
+            // Optionally, show loading overlay as running a script is like starting the agent
+            loadingOverlay.style.display = 'flex';
+            // Reset selector to default after running
+            scriptSelector.value = "";
+        }
+    });
+
     startBtn.addEventListener('click', () => {
         const objective = document.getElementById('instruction-input').value;
         if (objective) {
@@ -89,6 +117,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             alert("Please enter an objective.");
         }
+    });
+
+    pauseBtn.addEventListener('click', () => {
+        console.log('Pause button clicked.');
+        socket.emit('pause_agent');
+    });
+
+    stopBtn.addEventListener('click', () => {
+        console.log('Stop button clicked.');
+        socket.emit('stop_agent');
+        loadingOverlay.style.display = 'none';
     });
 
     const recordBtn = document.getElementById('record-btn');
@@ -118,6 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('agent_finished', (data) => {
         console.log('Agent has finished its task.', data);
         loadingOverlay.style.display = 'none';
+    });
+
+    socket.on('status_update', (data) => {
+        document.querySelector('.status-bar span:nth-child(1)').textContent = `Status: ${data.status}`;
+        document.querySelector('.status-bar span:nth-child(2)').textContent = `IP: ${data.ip}`;
+        document.querySelector('.status-bar span:nth-child(3)').textContent = `User-Agent: ${data.user_agent}`;
+        document.querySelector('.status-bar span:nth-child(4)').textContent = `Speed: ${data.speed}`;
+        document.querySelector('.status-bar span:nth-child(5)').textContent = `Stealth: ${data.stealth}`;
     });
 
     const views = document.querySelectorAll('.view');
@@ -198,9 +245,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // We don't want to add a listener to the theme-toggle here, as it has its own script.
         if (toggle.id !== 'theme-toggle') {
             toggle.addEventListener('change', (e) => {
-                console.log(`Toggle changed: ${e.target.id}, New value: ${e.target.checked}`);
-                // In a real implementation, this would likely send an update to the backend
-                // or change a configuration object.
+                const configKey = e.target.id;
+                const configValue = e.target.checked;
+                console.log(`Toggle changed: ${configKey}, New value: ${configValue}`);
+                socket.emit('update_config', { key: configKey, value: configValue });
             });
         }
     });
