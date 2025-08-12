@@ -450,6 +450,13 @@ def handle_record_action(data):
             log_message = f"CLICK on element '{selector}'"
         elif event_type == 'INPUT':
             log_message = f"INPUT text '{value}' into element '{selector}'"
+        elif event_type == 'CHANGE':
+            log_message = f"CHANGE on element '{selector}' to '{value}'"
+        elif event_type == 'SUBMIT':
+            log_message = f"SUBMIT form '{selector}'"
+        elif event_type == 'KEYDOWN':
+            key = data.get('key', 'N/A')
+            log_message = f"KEYDOWN '{key}' in element '{selector}'"
         else:
             log_message = f"Captured {event_type} on {selector}"
 
