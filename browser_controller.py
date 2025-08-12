@@ -284,17 +284,34 @@ class BrowserController:
             search_button_label = None
 
             for element in elements:
-                aria_label = element.get("aria_label", "").lower()
-                if element.get("tag") == "textarea" and "search" in aria_label:
+                # More robust search box finding
+                if element.get("tag") in ["textarea", "input"] and element.get("name") == "q":
                     search_box_label = element.get("label")
-                # The search button can be an <input> or <button>
-                if (element.get("tag") == "input" or element.get("tag") == "button") and "google search" in aria_label:
-                    search_button_label = element.get("label")
+
+                # More robust search button finding
+                aria_label = element.get("aria_label", "").lower()
+                text_content = element.get("text", "").lower() # Assuming bridge could send text content
+                value_attr = element.get("value", "").lower()
+
+                if element.get("tag") in ["button", "input"] and (
+                    "google search" in aria_label or
+                    "google search" in text_content or
+                    "google search" in value_attr
+                ):
+                    # Prioritize visible buttons over hidden inputs if possible
+                    if not search_button_label or element.get("tag") == "button":
+                         search_button_label = element.get("label")
 
             if not search_box_label:
-                return False, "Could not find the search input box on the page."
+                return False, "Could not find the search input box on the page. (Looking for input with name='q')"
             if not search_button_label:
-                return False, "Could not find the Google Search button on the page."
+                # As a fallback, try to find a submit button if the main search fails.
+                for element in elements:
+                    if element.get("tag") == "input" and element.get("type") == "submit":
+                        search_button_label = element.get("label")
+                        break
+                if not search_button_label:
+                    return False, "Could not find the Google Search button on the page."
 
             # 4. Type the query into the search box
             success, message = await self.execute_action({

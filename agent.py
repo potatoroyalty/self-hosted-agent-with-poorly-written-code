@@ -230,6 +230,7 @@ class WebAgent:
                 confidence_score = action_json.get("confidence_score", 0.0)
                 tool_name = action_json.get("tool")
                 params = action_json.get("params", {})
+                potential_actions = action_json.get("potential_actions", [])
 
                 print(f"[ACTION] Tool: {tool_name}, Params: {params}, Confidence: {confidence_score}, Thought: {thought}")
 
@@ -241,7 +242,7 @@ class WebAgent:
                         world_model_summary = self.working_memory.get_world_model()
                         user_instruction = await clarification_tool.arun(
                             world_model=f"My objective is: {self.objective}\n\nMy current understanding of the situation is:\n{world_model_summary}\n\nI was about to take the action '{tool_name}' with parameters {params} but my confidence is low. My thought process was: '{thought}'. What should I do instead?",
-                            potential_actions=[] # The AI model does not currently generate a list of potential actions, so this is empty.
+                            potential_actions=potential_actions
                         )
                         # The user response will be handled in the next loop iteration
                         self.last_action_result = f"User provided new instruction: {user_instruction}"

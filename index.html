@@ -102,10 +102,21 @@
 
             <div id="generator-view" class="view">
                 <h2>AI-Powered Script Generator</h2>
-                <button id="generate-script-btn">Generate Script</button>
-                <div id="script-editor" class="code-editor">
-                    <!-- Placeholder for the generated script editor -->
-                    <p>// Generated script will appear here</p>
+                <div class="generator-form">
+                    <div class="form-group">
+                        <label for="script-name-input">Script Name:</label>
+                        <input type="text" id="script-name-input" placeholder="e.g., login_to_github">
+                    </div>
+                    <div class="form-group">
+                        <label for="script-objective-input">Objective:</label>
+                        <textarea id="script-objective-input" rows="3" placeholder="Describe what this script should do. e.g., 'Logs into GitHub using credentials.'"></textarea>
+                    </div>
+                    <button id="generate-script-btn">Generate Script from Recording</button>
+                </div>
+                <div id="script-editor-container">
+                    <div id="script-editor" class="code-editor">
+                        <p>// Generated script will appear here</p>
+                    </div>
                 </div>
             </div>
 
@@ -120,8 +131,15 @@
             </div>
 
             <div id="logs-view" class="view">
-                <h2>Logs</h2>
-                <p>Logs will be displayed here.</p>
+                <h2>Application Logs</h2>
+                <div class="log-container">
+                    <h3>Critique Log (`critique_log.txt`)</h3>
+                    <pre id="critique-log-content" class="log-content">Loading...</pre>
+                </div>
+                <div class="log-container">
+                    <h3>Memory Log (`memory_log.txt`)</h3>
+                    <pre id="memory-log-content" class="log-content">Loading...</pre>
+                </div>
             </div>
 
             <div id="settings-view" class="view">
