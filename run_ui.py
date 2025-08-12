@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify
 from flask_socketio import SocketIO, emit
 import os
 import asyncio
@@ -9,6 +9,7 @@ from io import StringIO
 import webbrowser
 from threading import Timer
 from queue import Queue
+import config
 
 # Virtual environment check
 # if sys.prefix == sys.base_prefix:
@@ -74,6 +75,11 @@ def index():
 @app.route('/<path:path>')
 def serve_static(path):
     return send_from_directory(project_root, path)
+
+@app.route('/get_settings')
+def get_settings():
+    """Route to provide the current settings to the frontend."""
+    return jsonify(config.get_config())
 
 # --- SocketIO Event Handlers ---
 def get_scripts():
@@ -189,8 +195,7 @@ def handle_update_config(json_data):
     value = json_data.get('value')
     if key:
         print(f"[CONFIG] Updated '{key}' to '{value}'")
-        # Here you would typically update a shared config object or file
-        # For now, we'll just print it.
+        config.update_setting(key, value)
         emit('response', {'data': f"Configuration '{key}' updated to '{value}'."})
 
 # --- Recording Event Handlers ---
