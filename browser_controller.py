@@ -65,6 +65,21 @@ class BrowserController:
             raise TimeoutError("Timed out waiting for response from the browser bridge.")
 
 
+    async def propagate_settings_to_bridge(self):
+        """Sends the current dynamic settings to the browser bridge."""
+        if self.socketio:
+            settings = {
+                'load_images': config.get_setting('LOAD_IMAGES'),
+                'enable_javascript': config.get_setting('ENABLE_JAVASCRIPT'),
+                # Note: Stealth and Proxy are context-level and cannot be changed on the fly.
+                # We send them for informational purposes or for future bridge-side logic.
+                'stealth_mode': config.get_setting('STEALTH_MODE'),
+                'use_proxy': config.get_setting('USE_PROXY')
+            }
+            # This is too noisy to log on every step
+            # print(f"[SETTINGS] Propagating settings to bridge: {settings}")
+            self.socketio.emit('update_bridge_settings', settings, namespace='/bridge')
+
     async def start(self):
         """Starts the browser controller. No browser is launched here anymore."""
         print("[INFO] BrowserController started. Ready to connect to bridge.")

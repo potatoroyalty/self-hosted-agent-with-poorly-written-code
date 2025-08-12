@@ -218,6 +218,17 @@
 
     // --- Lifecycle and Recording Setup ---
 
+    let bridgeSettings = {}; // To store settings from the backend
+
+    socket.on('update_bridge_settings', (settings) => {
+        console.log('[Bridge] Received settings update:', settings);
+        bridgeSettings = settings;
+        // NOTE: Actually implementing these settings on the fly is complex.
+        // For example, disabling images or JS would likely require a page reload
+        // with new browser context settings, which is not handled here.
+        // This handler currently just proves the connection is made.
+    });
+
     socket.on('connect', () => {
         console.log("Bridge connected to backend via Socket.IO.");
     });
