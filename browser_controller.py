@@ -228,8 +228,26 @@ class BrowserController:
                 return True, f"Action '{action_type}' on element {element_label} completed successfully."
             else:
                 error_msg = response.get('error', 'Unknown error from bridge.')
+                if action_type == 'click' and self.recovery and element_label is not None:
+                    print(f"[INFO] Click action failed. Attempting recovery for element {element_label}.")
+                    recovery_success, recovery_message = await self.recovery.recover_from_click_failure(
+                        element_label=int(element_label)
+                    )
+                    if recovery_success:
+                        return True, f"Recovered from failed click: {recovery_message}"
+                    else:
+                        return False, f"Click action failed and recovery also failed: {recovery_message}"
                 return False, f"Action '{action_type}' failed: {error_msg}"
         except TimeoutError:
+            if action_type == 'click' and self.recovery and element_label is not None:
+                print(f"[INFO] Click action timed out. Attempting recovery for element {element_label}.")
+                recovery_success, recovery_message = await self.recovery.recover_from_click_failure(
+                    element_label=int(element_label)
+                )
+                if recovery_success:
+                    return True, f"Recovered from timed out click: {recovery_message}"
+                else:
+                    return False, f"Click action timed out and recovery also failed: {recovery_message}"
             return False, f"Action '{action_type}' failed: Timed out waiting for response from bridge."
         except Exception as e:
             return False, f"Action '{action_type}' failed with exception: {e}"
