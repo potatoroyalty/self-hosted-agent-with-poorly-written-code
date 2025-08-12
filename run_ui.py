@@ -1,6 +1,7 @@
 from flask import Flask, send_from_directory, jsonify
 from flask_socketio import SocketIO, emit
 import os
+import json
 import asyncio
 from main import run_agent_task
 import threading
@@ -114,6 +115,76 @@ def get_log_content(log_type):
             return jsonify({"content": f"{log_file} not found."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/get_scripts')
+def get_scripts_route():
+    """Route to provide the list of scripts."""
+    scripts = get_scripts()
+    return jsonify({"scripts": scripts})
+
+
+@app.route('/get_proxies')
+def get_proxies_route():
+    """Route to provide the list of proxies."""
+    try:
+        proxies_file = os.path.join(project_root, 'proxies.json')
+        if os.path.exists(proxies_file):
+            with open(proxies_file, 'r', encoding='utf-8') as f:
+                proxies = json.load(f)
+            return jsonify({"proxies": proxies})
+        else:
+            return jsonify({"proxies": []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@socketio.on('save_proxies')
+def handle_save_proxies(json_data):
+    """Handles a request to save the proxy list."""
+    proxies = json_data.get('proxies')
+    if proxies is None:
+        emit('proxies_saved', {'success': False, 'error': 'No proxy data provided.'})
+        return
+
+    try:
+        proxies_file = os.path.join(project_root, 'proxies.json')
+        with open(proxies_file, 'w', encoding='utf-8') as f:
+            json.dump(proxies, f, indent=4)
+        print("Proxies saved successfully.")
+        emit('proxies_saved', {'success': True})
+    except Exception as e:
+        print(f"Error saving proxies: {e}")
+        emit('proxies_saved', {'success': False, 'error': str(e)})
+
+
+@socketio.on('clear_log')
+def handle_clear_log(json_data):
+    """Handles a request to clear a log file."""
+    log_type = json_data.get('log_type')
+    if not log_type:
+        emit('log_cleared', {'success': False, 'error': 'Log type not provided.'})
+        return
+
+    if log_type == 'critique':
+        log_file = config.CRITIQUE_FILE
+    elif log_type == 'memory':
+        log_file = config.MEMORY_FILE
+    else:
+        emit('log_cleared', {'success': False, 'error': 'Invalid log type.'})
+        return
+
+    try:
+        if os.path.exists(log_file):
+            with open(log_file, 'w') as f:
+                f.write('') # Overwrite with empty content
+            print(f"Cleared log file: {log_file}")
+            emit('log_cleared', {'success': True, 'log_type': log_type})
+        else:
+            # If the file doesn't exist, it's already "clear"
+            emit('log_cleared', {'success': True, 'log_type': log_type})
+    except Exception as e:
+        print(f"Error clearing log '{log_file}': {e}")
+        emit('log_cleared', {'success': False, 'error': str(e)})
+
 
 # --- SocketIO Event Handlers ---
 def get_scripts():
@@ -313,6 +384,34 @@ def handle_request_script_list():
     print("[INFO] Client requested script list refresh.")
     scripts = get_scripts()
     emit('script_list', {'scripts': scripts})
+
+
+@socketio.on('delete_script')
+def handle_delete_script(json_data):
+    """Handles a request to delete a script."""
+    script_name = json_data.get('script_name')
+    if not script_name:
+        emit('script_deleted', {'success': False, 'error': 'Script name not provided.'})
+        return
+
+    try:
+        scripts_dir = os.path.join(project_root, 'scripts')
+        # Basic security check to prevent directory traversal
+        if '..' in script_name or not script_name.endswith(('.js', '.py')):
+             emit('script_deleted', {'success': False, 'error': 'Invalid script name.'})
+             return
+
+        script_path = os.path.join(scripts_dir, script_name)
+
+        if os.path.exists(script_path):
+            os.remove(script_path)
+            print(f"Deleted script: {script_name}")
+            emit('script_deleted', {'success': True, 'script_name': script_name})
+        else:
+            emit('script_deleted', {'success': False, 'error': 'Script not found.'})
+    except Exception as e:
+        print(f"Error deleting script '{script_name}': {e}")
+        emit('script_deleted', {'success': False, 'error': str(e)})
 
 
 @socketio.on('start_recording')
