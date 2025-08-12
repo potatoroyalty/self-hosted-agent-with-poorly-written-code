@@ -267,7 +267,7 @@ class NavigateToURLTool(BrowserTool):
         if not self.controller.website_graph:
             return "Error: Website graph is not available."
 
-        current_url = self.controller.page.url
+        current_url = self.controller.current_url
         path = self.controller.website_graph.find_path(current_url, url)
 
         if not path:
