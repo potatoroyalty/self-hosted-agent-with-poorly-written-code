@@ -120,18 +120,6 @@ class AIModel:
         self.agent_constitution = AGENT_CONSTITUTION
         self.action_constitution = ACTION_CONSTITUTION
 
-        # Check if running in a virtual environment (often a sign of a test/dev environment)
-        # in which case we bypass the expensive model loading.
-        if sys.prefix != sys.base_prefix:
-            print("[INFO] Running in a virtual environment. Bypassing Ollama model check and pull.")
-            print("[INFO] AI models will be mocked to save resources.")
-            self.main_model = MockOllamaChatModel()
-            self.fast_model = MockOllamaChatModel()
-            self.supervisor_model = MockOllamaChatModel()
-            self.vision_model = MockOllamaChatModel()
-            self.scripter_model = MockOllamaChatModel()
-            return
-
         # If not in a virtual environment, proceed with the full setup.
         self.main_model = OllamaChatModel(model_name=self.main_model_name)
         self.fast_model = OllamaChatModel(model_name=self.fast_model_name)
