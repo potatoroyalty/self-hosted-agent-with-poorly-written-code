@@ -175,9 +175,11 @@
                         window.labeledElements[label] = el; // Store element with its label
                         return {
                             label: label,
-                            // We don't need selector anymore, but keeping for potential future use
                             selector: getSelector(el),
-                            box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+                            box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                            tag: el.tagName.toLowerCase(),
+                            aria_label: el.getAttribute('aria-label'),
+                            href: el.href, // Will be undefined for non-links, which is fine
                         };
                     }
                     return null;
@@ -232,5 +234,7 @@
 
     document.addEventListener('click', recordEvent, { capture: true });
     document.addEventListener('input', recordEvent, { capture: true });
+    document.addEventListener('change', recordEvent, { capture: true });
+    document.addEventListener('submit', recordEvent, { capture: true });
 
 })();

@@ -239,5 +239,83 @@ class BrowserController:
         return True, f"Text search for '{text_to_find}' is not available in this mode."
 
     async def get_all_links(self) -> tuple[bool, list | str]:
-        """Not implemented in bridge model yet. Returns a placeholder."""
-        return True, "Link gathering is not available in this mode."
+        """
+        Gets a list of all hyperlink URLs from the current page.
+        """
+        print("[ACTION] Getting all links from the page.")
+        try:
+            # We don't need a new screenshot, just the element data.
+            # The `observe_and_annotate` method is the current way to get this data.
+            _, elements = await self.observe_and_annotate(step=-2) # Use a different dummy step
+
+            links = []
+            for element in elements:
+                # The bridge now sends the tag and href for each element.
+                if element.get('tag') == 'a' and element.get('href'):
+                    links.append(element.get('href'))
+
+            # Remove duplicates
+            unique_links = sorted(list(set(links)))
+
+            return True, unique_links
+        except Exception as e:
+            print(f"[ERROR] An unexpected error occurred while getting all links: {e}")
+            return False, f"An unexpected error occurred while getting all links: {e}"
+
+    async def _tool_perform_google_search(self, query: str) -> Tuple[bool, str]:
+        """
+        Performs a Google search by navigating to the homepage, finding the
+        search elements, and executing the search. This is a special tool
+        implementation that is not meant to be called directly by the AI model.
+        """
+        print(f"[ACTION] Performing Google search for: '{query}'")
+        try:
+            # 1. Navigate to Google
+            await self.goto_url("https://www.google.com")
+            # Let's add a small delay to ensure the page loads and the bridge is ready.
+            await asyncio.sleep(2)
+
+            # 2. Observe the page to get labeled elements
+            # We pass a dummy step number since this is an internal tool action.
+            _, elements = await self.observe_and_annotate(step=-1)
+
+            # 3. Find the search box and search button from the elements
+            search_box_label = None
+            search_button_label = None
+
+            for element in elements:
+                aria_label = element.get("aria_label", "").lower()
+                if element.get("tag") == "textarea" and "search" in aria_label:
+                    search_box_label = element.get("label")
+                # The search button can be an <input> or <button>
+                if (element.get("tag") == "input" or element.get("tag") == "button") and "google search" in aria_label:
+                    search_button_label = element.get("label")
+
+            if not search_box_label:
+                return False, "Could not find the search input box on the page."
+            if not search_button_label:
+                return False, "Could not find the Google Search button on the page."
+
+            # 4. Type the query into the search box
+            success, message = await self.execute_action({
+                "action_type": "type",
+                "details": {"element_label": search_box_label, "text": query}
+            })
+            if not success:
+                return False, f"Failed to type into search box: {message}"
+
+            await asyncio.sleep(1) # Small delay between actions
+
+            # 5. Click the search button
+            success, message = await self.execute_action({
+                "action_type": "click",
+                "details": {"element_label": search_button_label}
+            })
+            if not success:
+                return False, f"Failed to click search button: {message}"
+
+            return True, f"Successfully performed Google search for '{query}'."
+
+        except Exception as e:
+            print(f"[ERROR] An unexpected error occurred during Google search: {e}")
+            return False, f"An unexpected error occurred during Google search: {e}"
