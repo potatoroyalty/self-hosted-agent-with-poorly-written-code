@@ -1,0 +1,14 @@
+[
+    {
+        "alias": "Home",
+        "address": "http://user1:pass1@192.168.1.1:8080"
+    },
+    {
+        "alias": "Work",
+        "address": "http://user2:pass2@10.0.0.1:8888"
+    },
+    {
+        "alias": "Public",
+        "address": "http://45.55.12.34:3128"
+    }
+]

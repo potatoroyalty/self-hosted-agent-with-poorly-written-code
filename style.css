@@ -574,3 +574,198 @@ input:checked + .slider:before {
         transform: scale(1.1);
     }
 }
+
+/* --- Scripts Page --- */
+.script-list-container {
+    margin-top: 20px;
+    width: 100%;
+}
+
+#script-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+#script-list li {
+    background-color: var(--secondary-bg-color);
+    border: 1px solid var(--border-color);
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-color);
+    font-family: "SF Mono", "Courier New", Courier, monospace;
+}
+
+#script-list .delete-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#script-list .delete-btn:hover {
+    background-color: #c0392b;
+}
+
+/* --- Proxies Page --- */
+#proxies-view {
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    width: 100%;
+}
+
+.table-container {
+    width: 100%;
+    margin-top: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden; /* To keep border-radius */
+}
+
+#proxy-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#proxy-table th, #proxy-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#proxy-table thead {
+    background-color: var(--secondary-bg-color);
+}
+
+#proxy-table th {
+    font-size: 0.9em;
+    color: var(--secondary-text-color);
+    text-transform: uppercase;
+}
+
+#proxy-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#proxy-table input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+}
+
+.delete-proxy-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.delete-proxy-btn:hover {
+    background-color: #c0392b;
+}
+
+.proxy-controls {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.proxy-controls button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#add-proxy-btn {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+}
+
+#add-proxy-btn:hover {
+    background-color: var(--button-hover-bg-color);
+}
+
+#save-proxies-btn {
+    background-color: var(--accent-color);
+    color: var(--button-text-color);
+}
+
+#save-proxies-btn:hover {
+    background-color: var(--accent-color-hover);
+}
+
+/* --- Logs Page Additions --- */
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.log-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.log-action-btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background-color 0.2s;
+}
+
+.log-action-btn:hover {
+    background-color: var(--button-hover-bg-color);
+}
+
+.clear-log-btn {
+    background-color: #e74c3c;
+    color: white;
+    border-color: #c0392b;
+}
+
+.clear-log-btn:hover {
+    background-color: #c0392b;
+}
+
+/* --- Settings Page Additions --- */
+.settings-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+}
+
+#save-settings-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--accent-color);
+    color: var(--button-text-color);
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+#save-settings-btn:hover {
+    background-color: var(--accent-color-hover);
+}

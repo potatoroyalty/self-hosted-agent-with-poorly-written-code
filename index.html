@@ -122,22 +122,57 @@
 
             <div id="scripts-view" class="view">
                 <h2>Scripts</h2>
-                <p>Scripts management will be here.</p>
+                <p>Here you can manage your saved automation scripts.</p>
+                <div class="script-list-container">
+                    <ul id="script-list">
+                        <!-- Script items will be dynamically inserted here -->
+                    </ul>
+                </div>
             </div>
 
             <div id="proxies-view" class="view">
-                <h2>Proxies</h2>
-                <p>Proxies management will be here.</p>
+                <h2>Proxy Management</h2>
+                <p>Configure and manage your list of network proxies.</p>
+                <div class="table-container">
+                    <table id="proxy-table">
+                        <thead>
+                            <tr>
+                                <th>Alias</th>
+                                <th>Address</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proxy-table-body">
+                            <!-- Proxy rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="proxy-controls">
+                    <button id="add-proxy-btn">Add New Proxy</button>
+                    <button id="save-proxies-btn">Save Changes</button>
+                </div>
             </div>
 
             <div id="logs-view" class="view">
                 <h2>Application Logs</h2>
                 <div class="log-container">
-                    <h3>Critique Log (`critique_log.txt`)</h3>
+                    <div class="log-header">
+                        <h3>Critique Log (`critique_log.txt`)</h3>
+                        <div class="log-actions">
+                            <button class="log-action-btn" id="refresh-critique-log">Refresh</button>
+                            <button class="log-action-btn clear-log-btn" id="clear-critique-log">Clear</button>
+                        </div>
+                    </div>
                     <pre id="critique-log-content" class="log-content">Loading...</pre>
                 </div>
                 <div class="log-container">
-                    <h3>Memory Log (`memory_log.txt`)</h3>
+                    <div class="log-header">
+                        <h3>Memory Log (`memory_log.txt`)</h3>
+                        <div class="log-actions">
+                            <button class="log-action-btn" id="refresh-memory-log">Refresh</button>
+                            <button class="log-action-btn clear-log-btn" id="clear-memory-log">Clear</button>
+                        </div>
+                    </div>
                     <pre id="memory-log-content" class="log-content">Loading...</pre>
                 </div>
             </div>
@@ -348,6 +383,9 @@
                             <label for="SCREENSHOT_DIR">Screenshot Directory</label>
                             <input type="text" id="SCREENSHOT_DIR" name="SCREENSHOT_DIR">
                         </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button type="button" id="save-settings-btn">Save Settings</button>
                     </div>
                 </form>
             </div>

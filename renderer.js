@@ -237,39 +237,180 @@ document.addEventListener('DOMContentLoaded', () => {
     scriptsLink.addEventListener('click', (e) => {
         e.preventDefault();
         switchView(scriptsView, scriptsLink);
+        loadScripts();
+    });
+
+    async function loadScripts() {
+        try {
+            const response = await fetch('/get_scripts');
+            if (!response.ok) {
+                throw new Error('Failed to fetch scripts');
+            }
+            const data = await response.json();
+            const scriptList = document.getElementById('script-list');
+            scriptList.innerHTML = ''; // Clear existing list
+
+            if (data.scripts && data.scripts.length > 0) {
+                data.scripts.forEach(script => {
+                    const li = document.createElement('li');
+                    li.textContent = script;
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.className = 'delete-btn';
+                    deleteButton.onclick = () => deleteScript(script);
+
+                    li.appendChild(deleteButton);
+                    scriptList.appendChild(li);
+                });
+            } else {
+                scriptList.innerHTML = '<li>No scripts found.</li>';
+            }
+        } catch (error) {
+            console.error('Error loading scripts:', error);
+            const scriptList = document.getElementById('script-list');
+            scriptList.innerHTML = '<li>Error loading scripts.</li>';
+        }
+    }
+
+    function deleteScript(scriptName) {
+        if (confirm(`Are you sure you want to delete the script: ${scriptName}?`)) {
+            socket.emit('delete_script', { script_name: scriptName });
+        }
+    }
+
+    socket.on('script_deleted', (data) => {
+        if (data.success) {
+            alert(`Script '${data.script_name}' deleted successfully.`);
+            loadScripts(); // Refresh the list
+            socket.emit('request_script_list'); // Refresh the dropdown in browser view
+        } else {
+            alert(`Error deleting script: ${data.error}`);
+        }
     });
 
     proxiesLink.addEventListener('click', (e) => {
         e.preventDefault();
         switchView(proxiesView, proxiesLink);
+        loadProxies();
     });
+
+    async function loadProxies() {
+        try {
+            const response = await fetch('/get_proxies');
+            if (!response.ok) {
+                throw new Error('Failed to fetch proxies');
+            }
+            const data = await response.json();
+            const proxyTableBody = document.getElementById('proxy-table-body');
+            proxyTableBody.innerHTML = ''; // Clear existing table
+
+            if (data.proxies && data.proxies.length > 0) {
+                data.proxies.forEach(proxy => {
+                    addProxyRow(proxy.alias, proxy.address);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading proxies:', error);
+            const proxyTableBody = document.getElementById('proxy-table-body');
+            proxyTableBody.innerHTML = '<tr><td colspan="3">Error loading proxies.</td></tr>';
+        }
+    }
+
+    function addProxyRow(alias = '', address = '') {
+        const proxyTableBody = document.getElementById('proxy-table-body');
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+            <td><input type="text" class="proxy-alias" value="${alias}" placeholder="e.g., Home Proxy"></td>
+            <td><input type="text" class="proxy-address" value="${address}" placeholder="e.g., http://user:pass@host:port"></td>
+            <td><button class="delete-proxy-btn">Delete</button></td>
+        `;
+
+        row.querySelector('.delete-proxy-btn').addEventListener('click', () => {
+            row.remove();
+        });
+
+        proxyTableBody.appendChild(row);
+    }
+
+    document.getElementById('add-proxy-btn').addEventListener('click', () => {
+        addProxyRow();
+    });
+
+    document.getElementById('save-proxies-btn').addEventListener('click', () => {
+        const proxyTableBody = document.getElementById('proxy-table-body');
+        const rows = proxyTableBody.querySelectorAll('tr');
+        const proxies = [];
+        rows.forEach(row => {
+            const alias = row.querySelector('.proxy-alias').value.trim();
+            const address = row.querySelector('.proxy-address').value.trim();
+            if (alias && address) {
+                proxies.push({ alias, address });
+            }
+        });
+
+        if (confirm(`Are you sure you want to save these ${proxies.length} proxies? This will overwrite the existing list.`)) {
+            socket.emit('save_proxies', { proxies: proxies });
+        }
+    });
+
+    socket.on('proxies_saved', (data) => {
+        if (data.success) {
+            alert('Proxies saved successfully!');
+            loadProxies(); // Refresh the list
+        } else {
+            alert(`Error saving proxies: ${data.error}`);
+        }
+    });
+
+    async function fetchLog(logType, elementId) {
+        const element = document.getElementById(elementId);
+        element.textContent = 'Loading...'; // Show loading indicator
+        try {
+            const response = await fetch(`/get_log_content/${logType}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch ${logType} log: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            element.textContent = data.content || '(empty)';
+        } catch (error) {
+            console.error(`Error loading ${logType} log:`, error);
+            element.textContent = `Error loading log: ${error.message}`;
+        }
+    }
+
+    function clearLog(logType) {
+        if (confirm(`Are you sure you want to clear the ${logType} log? This action cannot be undone.`)) {
+            socket.emit('clear_log', { log_type: logType });
+        }
+    }
+
+    socket.on('log_cleared', (data) => {
+        if (data.success) {
+            alert(`${data.log_type} log cleared successfully.`);
+            // Refresh the view
+            fetchLog(data.log_type, `${data.log_type}-log-content`);
+        } else {
+            alert(`Error clearing log: ${data.error}`);
+        }
+    });
+
 
     logsLink.addEventListener('click', (e) => {
         e.preventDefault();
         switchView(logsView, logsLink);
-
-        // Fetch and display log content when the view is switched to
-        async function fetchLog(logType, elementId) {
-            const element = document.getElementById(elementId);
-            try {
-                const response = await fetch(`/get_log_content/${logType}`);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch ${logType} log: ${response.statusText}`);
-                }
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                element.textContent = data.content || '(empty)';
-            } catch (error) {
-                console.error(`Error loading ${logType} log:`, error);
-                element.textContent = `Error loading log: ${error.message}`;
-            }
-        }
-
         fetchLog('critique', 'critique-log-content');
         fetchLog('memory', 'memory-log-content');
     });
+
+    document.getElementById('refresh-critique-log').addEventListener('click', () => fetchLog('critique', 'critique-log-content'));
+    document.getElementById('clear-critique-log').addEventListener('click', () => clearLog('critique'));
+    document.getElementById('refresh-memory-log').addEventListener('click', () => fetchLog('memory', 'memory-log-content'));
+    document.getElementById('clear-memory-log').addEventListener('click', () => clearLog('memory'));
 
     settingsLink.addEventListener('click', (e) => {
         e.preventDefault();
@@ -527,4 +668,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load settings when the DOM is ready
     loadSettings();
+
+    // --- Settings Page Save Button ---
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            // The settings are already saved on change, so this is just for UX.
+            // We can give a visual confirmation.
+            saveSettingsBtn.textContent = 'Saved!';
+            saveSettingsBtn.style.backgroundColor = '#2ecc71'; // Green
+            setTimeout(() => {
+                saveSettingsBtn.textContent = 'Save Settings';
+                saveSettingsBtn.style.backgroundColor = ''; // Revert to default
+            }, 2000);
+        });
+    }
 });
