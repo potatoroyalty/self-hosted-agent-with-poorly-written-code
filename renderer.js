@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('log_update', (data) => {
         const logContainer = document.getElementById('live-log');
-        // Sanitize the data to prevent HTML injection
-        const sanitizedData = data.data.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        // Sanitize the data to prevent HTML injection using DOMPurify
+        const sanitizedData = DOMPurify.sanitize(data.data);
         logContainer.innerHTML += `<p>${sanitizedData}</p>`;
         // Scroll to the bottom of the log
         logContainer.scrollTop = logContainer.scrollHeight;

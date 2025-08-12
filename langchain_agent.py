@@ -241,8 +241,8 @@ class CreateMacroTool(BrowserTool):
     args_schema: Type[BaseModel] = CreateMacroInput
 
     def _run(self, objective: str) -> str:
-        """Use the asynchronous version of the tool."""
-        raise NotImplementedError("This tool does not support synchronous execution.")
+        """Synchronously runs the async version of the tool."""
+        return asyncio.run(self._arun(objective))
 
     async def _arun(self, objective: str) -> str:
         if not self.controller.agent:
@@ -260,8 +260,8 @@ class NavigateToURLTool(BrowserTool):
     args_schema: Type[BaseModel] = NavigateToURLInput
 
     def _run(self, url: str) -> str:
-        """Use the asynchronous version of the tool."""
-        raise NotImplementedError("This tool does not support synchronous execution.")
+        """Synchronously runs the async version of the tool."""
+        return asyncio.run(self._arun(url))
 
     async def _arun(self, url: str) -> str:
         if not self.controller.website_graph:
