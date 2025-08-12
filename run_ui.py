@@ -264,16 +264,22 @@ def handle_start_agent(json_data):
 @socketio.on('pause_agent')
 def handle_pause_agent():
     global agent_paused, agent_status
-    if agent_paused.is_set():
-        agent_paused.clear()
-        agent_status = "Running"
-        print("Agent resumed.")
-        emit('response', {'data': 'Agent resumed.'})
-    else:
+    if agent_thread and agent_thread.is_alive() and not agent_paused.is_set():
         agent_paused.set()
         agent_status = "Paused"
         print("Agent paused.")
+        emit('status_update', {'status': 'Paused'})
         emit('response', {'data': 'Agent paused.'})
+
+@socketio.on('resume_agent')
+def handle_resume_agent():
+    global agent_paused, agent_status
+    if agent_thread and agent_thread.is_alive() and agent_paused.is_set():
+        agent_paused.clear()
+        agent_status = "Running"
+        print("Agent resumed.")
+        emit('status_update', {'status': 'Running'})
+        emit('response', {'data': 'Agent resumed.'})
 
 @socketio.on('stop_agent')
 def handle_stop_agent():

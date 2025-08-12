@@ -198,6 +198,9 @@ class WebAgent:
 
             print(f"--- Step {i+1}/{self.max_steps} ---")
 
+            # Propagate dynamic settings to the browser bridge on each step
+            await self.browser.propagate_settings_to_bridge()
+
             # 1. Observe the page
             encoded_image, page_description = await self.browser.observe_and_annotate(step=i)
 

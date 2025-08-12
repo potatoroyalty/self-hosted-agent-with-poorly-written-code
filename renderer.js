@@ -84,6 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopBtn = document.getElementById('stop-btn');
     const scriptSelector = document.getElementById('script-selector');
 
+    // Initial state for buttons
+    pauseBtn.disabled = true;
+    stopBtn.disabled = true;
+
     socket.on('script_list', (data) => {
         const scripts = data.scripts || [];
         // Clear existing options except the first one
@@ -96,13 +100,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    function startAgent(objective, script = null) {
+        if (objective) {
+            console.log(`Starting agent with objective: ${objective}`);
+            loadingOverlay.style.display = 'flex';
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            stopBtn.disabled = false;
+
+            // The backend will handle getting the script content
+            const payload = script ? { script: script } : { objective: objective };
+            const event = script ? 'run_script' : 'start_agent';
+            socket.emit(event, payload);
+        } else if (!script) {
+             alert("Please enter an objective.");
+        }
+    }
+
     scriptSelector.addEventListener('change', () => {
         const selectedScript = scriptSelector.value;
         if (selectedScript) {
             console.log(`Selected script: ${selectedScript}`);
-            socket.emit('run_script', { script: selectedScript });
-            // Optionally, show loading overlay as running a script is like starting the agent
-            loadingOverlay.style.display = 'flex';
+            startAgent(selectedScript, selectedScript);
             // Reset selector to default after running
             scriptSelector.value = "";
         }
@@ -110,24 +129,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     startBtn.addEventListener('click', () => {
         const objective = document.getElementById('instruction-input').value;
-        if (objective) {
-            console.log('Start button clicked with objective:', objective);
-            loadingOverlay.style.display = 'flex';
-            socket.emit('start_agent', { objective: objective });
-        } else {
-            alert("Please enter an objective.");
-        }
+        startAgent(objective);
     });
 
     pauseBtn.addEventListener('click', () => {
-        console.log('Pause button clicked.');
-        socket.emit('pause_agent');
+        const isPaused = pauseBtn.classList.toggle('paused');
+        if (isPaused) {
+            pauseBtn.textContent = 'Resume';
+            console.log('Pause button clicked. Pausing agent.');
+            socket.emit('pause_agent');
+        } else {
+            pauseBtn.textContent = 'Pause';
+            console.log('Resume button clicked. Resuming agent.');
+            socket.emit('resume_agent');
+        }
     });
 
     stopBtn.addEventListener('click', () => {
         console.log('Stop button clicked.');
         socket.emit('stop_agent');
-        loadingOverlay.style.display = 'none';
+        // The rest of the UI update logic is in the 'agent_finished' listener
     });
 
     const recordBtn = document.getElementById('record-btn');
@@ -157,6 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('agent_finished', (data) => {
         console.log('Agent has finished its task.', data);
         loadingOverlay.style.display = 'none';
+        startBtn.disabled = false;
+        pauseBtn.disabled = true;
+        stopBtn.disabled = true;
+        pauseBtn.textContent = 'Pause';
+        pauseBtn.classList.remove('paused');
     });
 
     socket.on('status_update', (data) => {
@@ -421,16 +447,24 @@ document.addEventListener('DOMContentLoaded', () => {
     switchView(browserView, browserLink);
 
     // --- Quick Toggles Logic ---
-    const toggles = document.querySelectorAll('.quick-toggles input[type="checkbox"]');
-    toggles.forEach(toggle => {
-        // We don't want to add a listener to the theme-toggle here, as it has its own script.
-        if (toggle.id !== 'theme-toggle') {
+    const quickToggles = [
+        'stealth-mode',
+        'proxy-usage',
+        'load-images',
+        'enable-js'
+    ];
+
+    quickToggles.forEach(toggleId => {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
             toggle.addEventListener('change', (e) => {
-                const configKey = e.target.id;
+                const configKey = toggleId;
                 const configValue = e.target.checked;
-                console.log(`Toggle changed: ${configKey}, New value: ${configValue}`);
+                console.log(`Quick Toggle changed: ${configKey}, New value: ${configValue}`);
                 socket.emit('update_config', { key: configKey, value: configValue });
             });
+        } else {
+            console.warn(`Quick toggle with ID '${toggleId}' not found.`);
         }
     });
 
