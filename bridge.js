@@ -79,6 +79,36 @@
         }
     }
 
+    function applyJavascriptSetting(enabled) {
+        if (!enabled) {
+            if (window.jsObserver) {
+                return; // Already running
+            }
+            const observer = new MutationObserver((mutationsList) => {
+                for (const mutation of mutationsList) {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => {
+                            // Check if the node is an element and its tag is SCRIPT
+                            if (node.nodeType === 1 && node.tagName === 'SCRIPT') {
+                                console.warn('[Bridge] JS disabled: Blocking script with src:', node.src);
+                                node.remove();
+                            }
+                        });
+                    }
+                }
+            });
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+            window.jsObserver = observer;
+            console.log('[Bridge] JavaScript execution disabled (blocking new script tags).');
+        } else {
+            if (window.jsObserver) {
+                window.jsObserver.disconnect();
+                delete window.jsObserver;
+                console.log('[Bridge] JavaScript execution enabled.');
+            }
+        }
+    }
+
     // --- Agent Command Execution ---
 
     socket.on('goto', (data) => {
@@ -218,15 +248,44 @@
 
     // --- Lifecycle and Recording Setup ---
 
+    const IMAGE_STYLE_ID = 'dev-agent-image-style';
+    const JS_MUTATION_OBSERVER = 'dev-agent-js-observer';
+
+    function applyImageSetting(show) {
+        let styleElement = document.getElementById(IMAGE_STYLE_ID);
+        if (!show) {
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = IMAGE_STYLE_ID;
+                // Use visibility: hidden to preserve layout, unlike display: none
+                styleElement.textContent = 'img, video, iframe, embed, object { visibility: hidden !important; }';
+                document.head.appendChild(styleElement);
+                console.log('[Bridge] Images disabled.');
+            }
+        } else {
+            if (styleElement) {
+                styleElement.remove();
+                console.log('[Bridge] Images enabled.');
+            }
+        }
+    }
+
     let bridgeSettings = {}; // To store settings from the backend
 
     socket.on('update_bridge_settings', (settings) => {
         console.log('[Bridge] Received settings update:', settings);
+        const oldSettings = { ...bridgeSettings };
         bridgeSettings = settings;
-        // NOTE: Actually implementing these settings on the fly is complex.
-        // For example, disabling images or JS would likely require a page reload
-        // with new browser context settings, which is not handled here.
-        // This handler currently just proves the connection is made.
+
+        // Apply image settings if the setting has changed or on first load
+        if (oldSettings.load_images !== bridgeSettings.load_images) {
+            applyImageSetting(bridgeSettings.load_images);
+        }
+
+        // Apply JavaScript settings if the setting has changed or on first load
+        if (oldSettings.enable_javascript !== bridgeSettings.enable_javascript) {
+            applyJavascriptSetting(bridgeSettings.enable_javascript);
+        }
     });
 
     socket.on('connect', () => {
