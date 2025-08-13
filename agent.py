@@ -61,6 +61,7 @@ class WebAgent:
             self.ai_model = MagicMock()
         else:
             self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
+            self.ai_model.update_models_based_on_objective(objective)
         self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph, socketio=self.socketio, testing=self.testing)
         self.error_recovery = ErrorRecovery(self)
 

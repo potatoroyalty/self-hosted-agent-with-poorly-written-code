@@ -26,6 +26,25 @@ DEFAULT_SETTINGS = {
     "LOW_MEMORY_FAST_MODEL": "phi3",
     "LOW_MEMORY_VISION_MODEL": "gemma:2b",
 
+    # Dynamic Model Selection
+    "ENABLE_DYNAMIC_MODEL_SELECTION": True,
+    "TASK_MODEL_MAPPING": {
+        "research": {
+            "MAIN_MODEL": "mixtral:latest",
+            "SUPERVISOR_MODEL": "mixtral:latest"
+        },
+        "data_entry": {
+            "MAIN_MODEL": "mistral:7b",
+            "FAST_MODEL": "phi3"
+        },
+        "default": {
+            "MAIN_MODEL": "mixtral:latest",
+            "SUPERVISOR_MODEL": "mixtral:latest",
+            "FAST_MODEL": "phi3",
+            "VISION_MODEL": "gemma:7b"
+        }
+    },
+
     # Browser Configuration
     "HEADLESS_BROWSER": False,
     "BROWSER_TYPE": "chromium",
