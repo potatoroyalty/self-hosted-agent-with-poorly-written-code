@@ -6,9 +6,11 @@ import importlib.util
 from unittest.mock import MagicMock
 from ai_model import AIModel
 from browser_controller import BrowserController
+from security_filter import SecurityFilter
 from website_graph import WebsiteGraph
 from working_memory import WorkingMemory
 from strategy_manager import StrategyManager, StrategyCallbackHandler
+from langchain.schema import AgentAction
 from langchain_agent import (
     BrowserTool, MacroTool, MemoryTool,
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
@@ -47,6 +49,7 @@ class WebAgent:
         self.max_steps = max_steps
         self.self_critique = "No critiques from previous runs."
         self.last_action_result = "No action has been taken yet."
+        self.security_filter = SecurityFilter()
         
         self.run_folder = f"runs/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
@@ -404,6 +407,17 @@ class WebAgent:
             # 1. Observe the page
             encoded_image, page_description = await self.browser.observe_and_annotate(step=i)
 
+            # +++ NEW SECURITY STEP +++
+            # 1a. Scan the observed page description for threats
+            is_threat, threat_details = self.security_filter.scan_text(str(page_description)) # Convert to string to be safe
+            if is_threat:
+                print(f"[SECURITY ALERT] Malicious content detected on the page. Halting agent.")
+                print(f"[SECURITY ALERT] Reason: {threat_details}")
+                # You could also ask the user for confirmation here instead of halting.
+                # For now, halting is the safest option.
+                break # Stop the agent's run
+            # +++ END OF NEW SECURITY STEP +++
+
             # 2. Get strategic plan
             strategic_plan = await self.ai_model.get_strategic_plan(
                 self.objective,
@@ -428,7 +442,65 @@ class WebAgent:
                     page_description=page_description
                 )
 
+
                 action_result = await self.execute_tactical_action(action_json, i, page_description)
+                thought = action_json.get("thought", "")
+                confidence_score = action_json.get("confidence_score", 0.0)
+                tool_name = action_json.get("tool")
+                params = action_json.get("params", {})
+                potential_actions = action_json.get("potential_actions", [])
+
+                print(f"[ACTION] Tool: {tool_name}, Params: {params}, Confidence: {confidence_score}, Thought: {thought}")
+
+                is_valid = await self.ai_model.validate_action(self.objective, page_description, action_json)
+                if not is_valid:
+                    print(f"[VALIDATION] Action '{tool_name}' deemed invalid by the fast model. Skipping.")
+                    self.last_action_result = "Action was deemed invalid by the validator."
+                    self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+                    continue
+
+                # Adaptive Risk-Taking
+                if confidence_score < 0.6:
+                    print(f"[WARN] Low confidence score ({confidence_score}). Asking user for clarification.")
+                    clarification_tool = next((t for t in self.tools if t.name == "ask_user_for_clarification"), None)
+                    if clarification_tool:
+                        world_model_summary = self.working_memory.get_world_model()
+                        user_instruction = await clarification_tool.arun(
+                            world_model=f"My objective is: {self.objective}\n\nMy current understanding of the situation is:\n{world_model_summary}\n\nI was about to take the action '{tool_name}' with parameters {params} but my confidence is low. My thought process was: '{thought}'. What should I do instead?",
+                            potential_actions=potential_actions
+                        )
+                        # The user response will be handled in the next loop iteration
+                        self.last_action_result = f"User provided new instruction: {user_instruction}"
+                        self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+                        continue # Skip to next iteration
+                    else:
+                        print("[ERROR] AskUserForClarificationTool not found. Cannot ask for help.")
+                        self.last_action_result = "Error: Low confidence and clarification tool is not available."
+                        break # Exit plan execution
+
+                elif confidence_score < 0.9:
+                    print(f"[WARN] Medium confidence score ({confidence_score}). Proceeding with caution.")
+
+                # Execute action
+                tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
+                if tool_to_execute:
+                    try:
+                        # Manually call the callback handler to record the action
+                        await self.strategy_callback_handler.on_agent_action(
+                            AgentAction(tool=tool_name, tool_input=params, log="")
+                        )
+                        result = await tool_to_execute.arun(**params)
+                        self.last_action_result = result
+                        print(f"[INFO] Action '{tool_name}' executed successfully. Result: {result}")
+                    except Exception as e:
+                        error_message = f"An unexpected error occurred during tool execution: {e}"
+                        print(f"[ERROR] {error_message}")
+                        self.last_action_result = error_message
+                else:
+                    self.last_action_result = f"Error: Tool '{tool_name}' not found."
+                    print(f"[ERROR] {self.last_action_result}")
+
+                self.working_memory.add_action_result(tool_name, params, self.last_action_result)
 
                 if action_result == "finish":
                     return # End the run
