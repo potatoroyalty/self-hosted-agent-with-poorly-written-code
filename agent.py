@@ -6,6 +6,7 @@ import importlib.util
 from unittest.mock import MagicMock
 from ai_model import AIModel
 from browser_controller import BrowserController
+from security_filter import SecurityFilter
 from website_graph import WebsiteGraph
 from working_memory import WorkingMemory
 from strategy_manager import StrategyManager, StrategyCallbackHandler
@@ -46,6 +47,7 @@ class WebAgent:
         self.max_steps = max_steps
         self.self_critique = "No critiques from previous runs."
         self.last_action_result = "No action has been taken yet."
+        self.security_filter = SecurityFilter()
         
         self.run_folder = f"runs/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
@@ -271,6 +273,17 @@ class WebAgent:
 
             # 1. Observe the page
             encoded_image, page_description = await self.browser.observe_and_annotate(step=i)
+
+            # +++ NEW SECURITY STEP +++
+            # 1a. Scan the observed page description for threats
+            is_threat, threat_details = self.security_filter.scan_text(str(page_description)) # Convert to string to be safe
+            if is_threat:
+                print(f"[SECURITY ALERT] Malicious content detected on the page. Halting agent.")
+                print(f"[SECURITY ALERT] Reason: {threat_details}")
+                # You could also ask the user for confirmation here instead of halting.
+                # For now, halting is the safest option.
+                break # Stop the agent's run
+            # +++ END OF NEW SECURITY STEP +++
 
             # 2. Get strategic plan
             strategic_plan = await self.ai_model.get_strategic_plan(
