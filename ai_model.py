@@ -305,6 +305,25 @@ Labeled elements provided:
         print(f"[VALIDATION] AI proposed action: {json.dumps(proposed_action_json)}. Validator response: {decision}")
         return "true" in decision
 
+    async def verify_action_with_details(self, action_description: str, element_details: dict) -> bool:
+        """
+        Uses the fast model to verify if an element's details match the intended action.
+        """
+        prompt = f"""
+        You are a logical validator. Your answer must be a single word: either 'true' or 'false'.
+        - Intended Action: "{action_description}"
+        - Element Details: {json.dumps(element_details)}
+
+        Based on the element's details, does this element seem appropriate for the intended action?
+        """
+        messages = [
+            HumanMessage(content=prompt)
+        ]
+        response = await self.fast_model.agenerate(messages=[messages])
+        decision = response.generations[0][0].message.content.strip().lower()
+        print(f"[VERIFICATION] Action: '{action_description}', Details: {json.dumps(element_details)}. Verifier response: {decision}")
+        return "true" in decision
+
     async def get_self_critique(self, session_log):
         prompt = f"""
         You are a Self-Correction AI. You will be given the log of a web agent's session.
@@ -339,8 +358,16 @@ Labeled elements provided:
         response = await self.fast_model.agenerate(messages=[messages])
         return response.generations[0][0].message.content.strip()
 
-    async def get_strategic_plan(self, objective, history, page_description, self_critique):
+    async def get_strategic_plan(self, objective, history, page_description, self_critique, last_error=None):
         """First step of the cognitive cycle - generates high-level plan based on structured page data."""
+        error_context = ""
+        if last_error:
+            error_context = f"""
+# Recent Failure
+The last action failed with the following error: "{last_error}".
+You must learn from this mistake and create a new plan that avoids this error.
+"""
+
         prompt = f"""
         {self.agent_constitution}
 
@@ -349,6 +376,8 @@ Labeled elements provided:
         
         # Critical Self-Critique from Last Run
         A previous version of yourself made a mistake. Here is a critical instruction: "{self_critique}".
+
+        {error_context}
 
         # Factual Description of the Current Screen (from preprocessor)
         {page_description}

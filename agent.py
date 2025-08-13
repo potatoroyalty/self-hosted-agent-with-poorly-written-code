@@ -18,6 +18,7 @@ from langchain_agent import (
     FinishTool
 )
 from vision_tools import FindElementWithVisionTool, AnalyzeVisualLayoutTool
+from recovery import ErrorRecovery
 import config
 
 # Pydantic's model_rebuild() is used to resolve forward references
@@ -58,6 +59,7 @@ class WebAgent:
         else:
             self.ai_model = AIModel(main_model_name=model_name, supervisor_model_name=supervisor_model_name, fast_model_name=fast_model_name, vision_model_name=vision_model_name)
         self.browser = BrowserController(run_folder=self.run_folder, agent=self, website_graph=self.website_graph, socketio=self.socketio, testing=self.testing)
+        self.error_recovery = ErrorRecovery(self)
 
         # Added robust encoding and error handling
         if os.path.exists(self.memory_file):
@@ -186,6 +188,136 @@ class WebAgent:
                 except Exception as e:
                     print(f"[ERROR] Failed to load dynamic tool {tool_name}: {e}")
 
+    async def handle_action_failure(self, tool_name: str, params: dict, error_message: str, step: int):
+        """
+        Handles the failure of a tool action by triggering a re-planning cycle.
+        """
+        print(f"[REPLAN] Action {tool_name} with params {params} failed with error: {error_message}. Triggering re-plan.")
+
+        # Get a new strategic plan from the AI model
+        encoded_image, page_description = await self.browser.observe_and_annotate(step=step)
+        strategic_plan = await self.ai_model.get_strategic_plan(
+            self.objective,
+            history=self.working_memory.get_history(),
+            page_description=page_description,
+            self_critique=self.self_critique,
+            last_error=error_message
+        )
+
+        # Update the working memory with the new plan
+        self.working_memory.add_reflection(strategic_plan.get("reflection", ""))
+        self.working_memory.add_world_model(strategic_plan.get("world_model", ""))
+        self.working_memory.add_plan(strategic_plan.get("plan", []))
+
+        print("[REPLAN] New plan generated and updated in working memory.")
+
+    async def execute_tactical_action(self, action_json: dict, i: int, page_description: str) -> bool:
+        """
+        Executes a single tactical action, including confidence checks, verification, and error handling.
+        Returns True if the action was successful or skipped, False if it failed and requires a re-plan.
+        """
+        thought = action_json.get("thought", "")
+        confidence_score = action_json.get("confidence_score", 0.0)
+        tool_name = action_json.get("tool")
+        params = action_json.get("params", {})
+        potential_actions = action_json.get("potential_actions", [])
+
+        print(f"[ACTION] Tool: {tool_name}, Params: {params}, Confidence: {confidence_score}, Thought: {thought}")
+
+        is_valid = await self.ai_model.validate_action(self.objective, page_description, action_json)
+        if not is_valid:
+            print(f"[VALIDATION] Action '{tool_name}' deemed invalid by the fast model. Skipping.")
+            self.last_action_result = "Action was deemed invalid by the validator."
+            self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+            return True # Continue with the next action in the plan
+
+        # Adaptive Risk-Taking
+        if confidence_score < 0.6:
+            print(f"[WARN] Low confidence score ({confidence_score}). Asking user for clarification.")
+            clarification_tool = next((t for t in self.tools if t.name == "ask_user_for_clarification"), None)
+            if clarification_tool:
+                world_model_summary = self.working_memory.get_world_model()
+                user_instruction = await clarification_tool.arun(
+                    world_model=f"My objective is: {self.objective}\n\nMy current understanding of the situation is:\n{world_model_summary}\n\nI was about to take the action '{tool_name}' with parameters {params} but my confidence is low. My thought process was: '{thought}'. What should I do instead?",
+                    potential_actions=potential_actions
+                )
+                self.last_action_result = f"User provided new instruction: {user_instruction}"
+                self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+                return True # Continue with the next action
+            else:
+                print("[ERROR] AskUserForClarificationTool not found. Cannot ask for help.")
+                self.last_action_result = "Error: Low confidence and clarification tool is not available."
+                await self.handle_action_failure(tool_name, params, self.last_action_result, i)
+                return False # Re-plan needed
+
+        elif confidence_score < 0.9:
+            print(f"[WARN] Medium confidence score ({confidence_score}). Proceeding with caution.")
+            if tool_name == 'click':
+                element_label = params.get('element')
+                if element_label:
+                    print(f"[VERIFICATION] Getting details for element {element_label} before clicking.")
+                    details_tool = next((t for t in self.tools if t.name == "get_element_details"), None)
+                    if details_tool:
+                        details = await details_tool.arun(label=element_label)
+                        if isinstance(details, dict):
+                            is_verified = await self.ai_model.verify_action_with_details(f"Click element {element_label}", details)
+                            if not is_verified:
+                                print(f"[VERIFICATION] Verification failed for element {element_label}. Skipping action.")
+                                self.last_action_result = f"Action '{tool_name}' skipped due to failed verification."
+                                self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+                                return True # Continue with the next action
+                        else:
+                            print(f"[VERIFICATION] Could not get details for element {element_label}. Proceeding without verification.")
+                    else:
+                        print("[VERIFICATION] GetElementDetailsTool not found. Proceeding without verification.")
+
+        # Execute action
+        tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
+        if tool_to_execute:
+            try:
+                result = await tool_to_execute.arun(**params)
+                self.last_action_result = result
+                print(f"[INFO] Action '{tool_name}' executed successfully. Result: {result}")
+            except Exception as e:
+                error_message = f"An unexpected error occurred during tool execution: {e}"
+                print(f"[ERROR] {error_message}")
+                self.last_action_result = error_message
+
+                if tool_name == 'click':
+                    element_label = params.get('element')
+                    if element_label:
+                        recovery_successful, recovery_message = await self.error_recovery.recover_from_click_failure(element_label)
+                        if recovery_successful:
+                            print(f"[RECOVERY] {recovery_message}")
+                            self.last_action_result = recovery_message
+                        else:
+                            print(f"[RECOVERY] Click recovery failed: {recovery_message}")
+                            await self.handle_action_failure(tool_name, params, error_message, i)
+                            return False # Re-plan needed
+                    else:
+                        print("[ERROR] Cannot attempt click recovery without an element label.")
+                        await self.handle_action_failure(tool_name, params, error_message, i)
+                        return False
+                else:
+                    await self.handle_action_failure(tool_name, params, error_message, i)
+                    return False
+        else:
+            self.last_action_result = f"Error: Tool '{tool_name}' not found."
+            print(f"[ERROR] {self.last_action_result}")
+            await self.handle_action_failure(tool_name, params, self.last_action_result, i)
+            return False
+
+        self.working_memory.add_action_result(tool_name, params, self.last_action_result)
+
+        if tool_name == "finish":
+            print("[INFO] 'finish' action called. Ending run.")
+            # Special case for finish, we want to stop execution entirely.
+            # We can return a specific value or handle it in the loop.
+            # For now, let's return a value that the loop can check.
+            return "finish"
+
+        return True
+
     async def run(self):
         await self.browser.start()
 
@@ -290,71 +422,18 @@ class WebAgent:
 
             # 3. Execute tactical actions
             for step in plan:
-                # Get tactical action
                 action_json = await self.ai_model.get_tactical_action(
                     plan=[step],
                     encoded_image=encoded_image,
                     page_description=page_description
                 )
 
-                thought = action_json.get("thought", "")
-                confidence_score = action_json.get("confidence_score", 0.0)
-                tool_name = action_json.get("tool")
-                params = action_json.get("params", {})
-                potential_actions = action_json.get("potential_actions", [])
+                action_result = await self.execute_tactical_action(action_json, i, page_description)
 
-                print(f"[ACTION] Tool: {tool_name}, Params: {params}, Confidence: {confidence_score}, Thought: {thought}")
-
-                is_valid = await self.ai_model.validate_action(self.objective, page_description, action_json)
-                if not is_valid:
-                    print(f"[VALIDATION] Action '{tool_name}' deemed invalid by the fast model. Skipping.")
-                    self.last_action_result = "Action was deemed invalid by the validator."
-                    self.working_memory.add_action_result(tool_name, params, self.last_action_result)
-                    continue
-
-                # Adaptive Risk-Taking
-                if confidence_score < 0.6:
-                    print(f"[WARN] Low confidence score ({confidence_score}). Asking user for clarification.")
-                    clarification_tool = next((t for t in self.tools if t.name == "ask_user_for_clarification"), None)
-                    if clarification_tool:
-                        world_model_summary = self.working_memory.get_world_model()
-                        user_instruction = await clarification_tool.arun(
-                            world_model=f"My objective is: {self.objective}\n\nMy current understanding of the situation is:\n{world_model_summary}\n\nI was about to take the action '{tool_name}' with parameters {params} but my confidence is low. My thought process was: '{thought}'. What should I do instead?",
-                            potential_actions=potential_actions
-                        )
-                        # The user response will be handled in the next loop iteration
-                        self.last_action_result = f"User provided new instruction: {user_instruction}"
-                        self.working_memory.add_action_result(tool_name, params, self.last_action_result)
-                        continue # Skip to next iteration
-                    else:
-                        print("[ERROR] AskUserForClarificationTool not found. Cannot ask for help.")
-                        self.last_action_result = "Error: Low confidence and clarification tool is not available."
-                        break # Exit plan execution
-
-                elif confidence_score < 0.9:
-                    print(f"[WARN] Medium confidence score ({confidence_score}). Proceeding with caution.")
-
-                # Execute action
-                tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
-                if tool_to_execute:
-                    try:
-                        result = await tool_to_execute.arun(**params)
-                        self.last_action_result = result
-                        print(f"[INFO] Action '{tool_name}' executed successfully. Result: {result}")
-                    except Exception as e:
-                        error_message = f"An unexpected error occurred during tool execution: {e}"
-                        print(f"[ERROR] {error_message}")
-                        self.last_action_result = error_message
-                else:
-                    self.last_action_result = f"Error: Tool '{tool_name}' not found."
-                    print(f"[ERROR] {self.last_action_result}")
-
-                self.working_memory.add_action_result(tool_name, params, self.last_action_result)
-
-                # If the action was to finish, break the outer loop
-                if tool_name == "finish":
-                    print("[INFO] 'finish' action called. Ending run.")
-                    return
+                if action_result == "finish":
+                    return # End the run
+                elif not action_result:
+                    break # Re-plan needed, so break from plan execution to re-evaluate
 
         print("\n[INFO] Agent run has finished.")
 
