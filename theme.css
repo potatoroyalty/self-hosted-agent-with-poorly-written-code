@@ -32,6 +32,8 @@
     --link-hover-bg-color: #3a3a3a;
     --link-hover-text-color: #fff;
     --loading-overlay-bg-color: rgba(255, 255, 255, 0.8);
+    --danger-color: #dc3545;
+    --danger-hover-color: #c82333;
 }
 
 [data-theme='dark'] {
@@ -68,4 +70,6 @@
     --link-hover-bg-color: #3a3a3a;
     --link-hover-text-color: #fff;
     --loading-overlay-bg-color: rgba(42, 42, 42, 0.8);
+    --danger-color: #e74c3c;
+    --danger-hover-color: #c0392b;
 }

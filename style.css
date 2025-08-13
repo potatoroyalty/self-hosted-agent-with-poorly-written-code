@@ -120,18 +120,46 @@ body {
     align-items: center;
 }
 
-.automation-controls button, .browser-controls button {
+.btn {
     padding: 8px 12px;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 5px;
-    background-color: var(--button-bg-color);
-    color: var(--button-text-color);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    font-size: 0.9em;
+    font-weight: 500;
 }
 
-.automation-controls button:hover, .browser-controls button:hover {
+.btn-primary {
+    background-color: var(--accent-color);
+    color: var(--button-text-color);
+    border-color: var(--accent-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color-hover);
+    border-color: var(--accent-color-hover);
+}
+
+.btn-secondary {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border-color: var(--border-color);
+}
+
+.btn-secondary:hover {
     background-color: var(--button-hover-bg-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: #ffffff;
+    border-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-hover-color);
+    border-color: var(--danger-hover-color);
 }
 
 #script-selector, #url-bar {
@@ -346,21 +374,6 @@ input:checked + .slider:before {
 }
 
 
-#generate-script-btn {
-    padding: 12px 15px;
-    border: none;
-    border-radius: 5px;
-    background-color: var(--accent-color);
-    color: var(--button-text-color);
-    cursor: pointer;
-    transition: background-color 0.2s;
-    align-self: flex-start;
-    font-size: 1em;
-}
-
-#generate-script-btn:hover {
-    background-color: var(--accent-color-hover);
-}
 
 #script-editor-container {
     flex-grow: 1;
@@ -588,19 +601,6 @@ input:checked + .slider:before {
     font-family: "SF Mono", "Courier New", Courier, monospace;
 }
 
-#script-list .delete-btn {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-#script-list .delete-btn:hover {
-    background-color: #c0392b;
-}
 
 /* --- Proxies Page --- */
 #proxies-view {
@@ -651,50 +651,10 @@ input:checked + .slider:before {
     color: var(--input-text-color);
 }
 
-.delete-proxy-btn {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.delete-proxy-btn:hover {
-    background-color: #c0392b;
-}
-
 .proxy-controls {
     margin-top: 20px;
     display: flex;
     gap: 10px;
-}
-
-.proxy-controls button {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-#add-proxy-btn {
-    background-color: var(--button-bg-color);
-    color: var(--button-text-color);
-}
-
-#add-proxy-btn:hover {
-    background-color: var(--button-hover-bg-color);
-}
-
-#save-proxies-btn {
-    background-color: var(--accent-color);
-    color: var(--button-text-color);
-}
-
-#save-proxies-btn:hover {
-    background-color: var(--accent-color-hover);
 }
 
 /* --- Logs Page Additions --- */
@@ -710,32 +670,61 @@ input:checked + .slider:before {
     gap: 10px;
 }
 
-.log-action-btn {
-    padding: 5px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--button-bg-color);
-    color: var(--button-text-color);
-    cursor: pointer;
-    font-size: 0.85em;
-    transition: background-color 0.2s;
-}
-
-.log-action-btn:hover {
-    background-color: var(--button-hover-bg-color);
-}
-
-.clear-log-btn {
-    background-color: #e74c3c;
-    color: white;
-    border-color: #c0392b;
-}
-
-.clear-log-btn:hover {
-    background-color: #c0392b;
-}
 
 /* --- Settings Page Additions --- */
+.settings-accordion {
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.settings-section-header {
+    background-color: var(--secondary-bg-color);
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-section-header:hover {
+    background-color: var(--tertiary-bg-color);
+}
+
+.settings-section-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+.accordion-toggle {
+    font-size: 1.5em;
+    font-weight: bold;
+    transition: transform 0.3s ease;
+}
+
+.settings-section-content {
+    padding: 15px;
+    display: none; /* Hidden by default */
+    border-top: 1px solid var(--border-color);
+}
+
+.settings-section-content .form-group {
+    margin-bottom: 15px;
+}
+
+.settings-section-content .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.settings-accordion.active .settings-section-content {
+    display: block;
+}
+
+.settings-accordion.active .accordion-toggle {
+    transform: rotate(45deg);
+}
+
 .settings-actions {
     margin-top: 20px;
     padding-top: 20px;
@@ -744,20 +733,6 @@ input:checked + .slider:before {
     justify-content: flex-end;
 }
 
-#save-settings-btn {
-    padding: 12px 20px;
-    border: none;
-    border-radius: 5px;
-    background-color: var(--accent-color);
-    color: var(--button-text-color);
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-#save-settings-btn:hover {
-    background-color: var(--accent-color-hover);
-}
 
 /* --- Live Log Enhancements --- */
 #live-log {
@@ -783,29 +758,6 @@ input:checked + .slider:before {
     font-family: inherit;
 }
 
-#log-filter-btn,
-#log-clear-btn {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 5px;
-    background-color: var(--button-bg-color);
-    color: var(--button-text-color);
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-#log-filter-btn:hover,
-#log-clear-btn:hover {
-    background-color: var(--button-hover-bg-color);
-}
-
-#log-clear-btn {
-    background-color: var(--danger-color, #e74c3c);
-}
-
-#log-clear-btn:hover {
-    background-color: var(--danger-hover-color, #c0392b);
-}
 
 .log-content-area {
     flex-grow: 1;
@@ -820,4 +772,106 @@ input:checked + .slider:before {
 .log-content-area p {
     margin-bottom: 4px;
     word-break: break-all;
+}
+
+/* --- Loading Spinner --- */
+.loading-spinner {
+    border: 5px solid var(--spinner-track-color);
+    border-top: 5px solid var(--accent-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 40px auto; /* Center it in the container */
+}
+
+/* --- Modal Styles --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background-color: var(--primary-bg-color);
+    border-radius: 8px;
+    box-shadow: 0 5px 15px var(--box-shadow-color);
+    width: 90%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--primary-text-color);
+}
+
+.modal-close {
+    font-size: 1.8em;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--secondary-text-color);
+}
+
+.modal-close:hover {
+    color: var(--primary-text-color);
+}
+
+.modal-body {
+    padding: 20px;
+    color: var(--secondary-text-color);
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-footer button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: var(--button-text-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color-hover);
+}
+
+.btn-secondary {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--button-hover-bg-color);
 }

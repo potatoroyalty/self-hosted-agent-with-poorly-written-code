@@ -1,3 +1,61 @@
+// --- Modal Logic ---
+const modalOverlay = document.getElementById('modal-overlay');
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modal-title');
+const modalMessage = document.getElementById('modal-message');
+const modalClose = document.getElementById('modal-close');
+const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+let confirmCallback = null;
+
+function showModal(title, message, isConfirmation = false) {
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+
+    if (isConfirmation) {
+        modalConfirmBtn.style.display = 'inline-block';
+        modalCancelBtn.style.display = 'inline-block';
+    } else {
+        modalConfirmBtn.style.display = 'none';
+        modalCancelBtn.textContent = 'Close';
+    }
+
+    modalOverlay.style.display = 'flex';
+}
+
+function hideModal() {
+    modalOverlay.style.display = 'none';
+    if (confirmCallback) {
+        confirmCallback = null;
+    }
+}
+
+function showNotification(message, title = 'Notification') {
+    showModal(title, message, false);
+}
+
+function showConfirmation(message, onConfirm, title = 'Confirmation') {
+    confirmCallback = onConfirm;
+    showModal(title, message, true);
+}
+
+
+modalClose.addEventListener('click', hideModal);
+modalCancelBtn.addEventListener('click', hideModal);
+modalConfirmBtn.addEventListener('click', () => {
+    if (confirmCallback) {
+        confirmCallback();
+    }
+    hideModal();
+});
+window.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+        hideModal();
+    }
+});
+
+
 // Handles tab switching in the right sidebar
 function openTab(evt, tabName) {
     // Get all elements with class="tab-content" and hide them
@@ -176,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const event = script ? 'run_script' : 'start_agent';
             socket.emit(event, payload);
         } else if (!script) {
-             alert("Please enter an objective.");
+            showNotification("Please enter an objective.", "Objective Required");
         }
     }
 
@@ -332,14 +390,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadScripts() {
+        const scriptList = document.getElementById('script-list');
+        scriptList.innerHTML = '<div class="loading-spinner"></div>'; // Show spinner
+
         try {
             const response = await fetch('/get_scripts');
             if (!response.ok) {
                 throw new Error('Failed to fetch scripts');
             }
             const data = await response.json();
-            const scriptList = document.getElementById('script-list');
-            scriptList.innerHTML = ''; // Clear existing list
+            scriptList.innerHTML = ''; // Clear spinner
 
             if (data.scripts && data.scripts.length > 0) {
                 data.scripts.forEach(script => {
@@ -348,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const deleteButton = document.createElement('button');
                     deleteButton.textContent = 'Delete';
-                    deleteButton.className = 'delete-btn';
+                    deleteButton.className = 'btn btn-danger';
                     deleteButton.onclick = () => deleteScript(script);
 
                     li.appendChild(deleteButton);
@@ -359,24 +419,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error loading scripts:', error);
-            const scriptList = document.getElementById('script-list');
             scriptList.innerHTML = '<li>Error loading scripts.</li>';
         }
     }
 
     function deleteScript(scriptName) {
-        if (confirm(`Are you sure you want to delete the script: ${scriptName}?`)) {
+        showConfirmation(`Are you sure you want to delete the script: ${scriptName}?`, () => {
             socket.emit('delete_script', { script_name: scriptName });
-        }
+        }, 'Delete Script');
     }
 
     socket.on('script_deleted', (data) => {
         if (data.success) {
-            alert(`Script '${data.script_name}' deleted successfully.`);
+            showNotification(`Script '${data.script_name}' deleted successfully.`, 'Success');
             loadScripts(); // Refresh the list
             socket.emit('request_script_list'); // Refresh the dropdown in browser view
         } else {
-            alert(`Error deleting script: ${data.error}`);
+            showNotification(`Error deleting script: ${data.error}`, 'Error');
         }
     });
 
@@ -387,14 +446,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadProxies() {
+        const proxyTableBody = document.getElementById('proxy-table-body');
+        proxyTableBody.innerHTML = '<tr><td colspan="3"><div class="loading-spinner"></div></td></tr>'; // Show spinner
+
         try {
             const response = await fetch('/get_proxies');
             if (!response.ok) {
                 throw new Error('Failed to fetch proxies');
             }
             const data = await response.json();
-            const proxyTableBody = document.getElementById('proxy-table-body');
-            proxyTableBody.innerHTML = ''; // Clear existing table
+            proxyTableBody.innerHTML = ''; // Clear spinner
 
             if (data.proxies && data.proxies.length > 0) {
                 data.proxies.forEach(proxy => {
@@ -403,7 +464,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error loading proxies:', error);
-            const proxyTableBody = document.getElementById('proxy-table-body');
             proxyTableBody.innerHTML = '<tr><td colspan="3">Error loading proxies.</td></tr>';
         }
     }
@@ -415,10 +475,10 @@ document.addEventListener('DOMContentLoaded', () => {
         row.innerHTML = `
             <td><input type="text" class="proxy-alias" value="${alias}" placeholder="e.g., Home Proxy"></td>
             <td><input type="text" class="proxy-address" value="${address}" placeholder="e.g., http://user:pass@host:port"></td>
-            <td><button class="delete-proxy-btn">Delete</button></td>
+            <td><button class="btn btn-danger">Delete</button></td>
         `;
 
-        row.querySelector('.delete-proxy-btn').addEventListener('click', () => {
+        row.querySelector('.btn-danger').addEventListener('click', () => {
             row.remove();
         });
 
@@ -441,23 +501,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (confirm(`Are you sure you want to save these ${proxies.length} proxies? This will overwrite the existing list.`)) {
+        showConfirmation(`Are you sure you want to save these ${proxies.length} proxies? This will overwrite the existing list.`, () => {
             socket.emit('save_proxies', { proxies: proxies });
-        }
+        }, 'Save Proxies');
     });
 
     socket.on('proxies_saved', (data) => {
         if (data.success) {
-            alert('Proxies saved successfully!');
+            showNotification('Proxies saved successfully!', 'Success');
             loadProxies(); // Refresh the list
         } else {
-            alert(`Error saving proxies: ${data.error}`);
+            showNotification(`Error saving proxies: ${data.error}`, 'Error');
         }
     });
 
     async function fetchLog(logType, elementId) {
         const element = document.getElementById(elementId);
-        element.textContent = 'Loading...'; // Show loading indicator
+        element.innerHTML = '<div class="loading-spinner"></div>'; // Show spinner
         try {
             const response = await fetch(`/get_log_content/${logType}`);
             if (!response.ok) {
@@ -475,18 +535,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearLog(logType) {
-        if (confirm(`Are you sure you want to clear the ${logType} log? This action cannot be undone.`)) {
+        showConfirmation(`Are you sure you want to clear the ${logType} log? This action cannot be undone.`, () => {
             socket.emit('clear_log', { log_type: logType });
-        }
+        }, 'Clear Log');
     }
 
     socket.on('log_cleared', (data) => {
         if (data.success) {
-            alert(`${data.log_type} log cleared successfully.`);
+            showNotification(`${data.log_type} log cleared successfully.`, 'Success');
             // Refresh the view
             fetchLog(data.log_type, `${data.log_type}-log-content`);
         } else {
-            alert(`Error clearing log: ${data.error}`);
+            showNotification(`Error clearing log: ${data.error}`, 'Error');
         }
     });
 
@@ -544,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const objective = scriptObjectiveInput.value.trim();
 
         if (!scriptName || !objective) {
-            alert('Please provide both a script name and an objective.');
+            showNotification('Please provide both a script name and an objective.', 'Input Required');
             return;
         }
 
@@ -553,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scriptEditor.innerHTML = '<p>Generating script... Please wait.</p>';
 
         if (lastRecording.length === 0) {
-            alert('You have not recorded any actions yet. Please record a macro before generating a script.');
+            showNotification('You have not recorded any actions yet. Please record a macro before generating a script.', 'No Recording Found');
             scriptEditor.innerHTML = '<p class="error">No recording data available.</p>';
             return;
         }
@@ -569,7 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Received recorded events from server.');
         if (data.events) {
             lastRecording = data.events;
-            alert(`Recording finished! ${lastRecording.length} actions were captured. You can now generate a script.`);
+            showNotification(`Recording finished! ${lastRecording.length} actions were captured. You can now generate a script.`, 'Recording Complete');
         }
     });
 
@@ -587,14 +647,14 @@ document.addEventListener('DOMContentLoaded', () => {
             scriptEditor.appendChild(pre);
 
             // Notify the user
-            alert(`Script '${data.script_name}' generated successfully!`);
+            showNotification(`Script '${data.script_name}' generated successfully!`, 'Script Generated');
 
             // Refresh the script list in the Browser view
             socket.emit('request_script_list');
 
         } else {
             scriptEditor.innerHTML = `<p class="error">Error generating script: ${data.error}</p>`;
-            alert(`Error generating script: ${data.error}`);
+            showNotification(`Error generating script: ${data.error}`, 'Error');
         }
     });
 
@@ -726,6 +786,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Settings Page Logic ---
     const settingsForm = document.getElementById('settings-form');
+    const settingsView = document.getElementById('settings-view');
+
+    if (settingsView) {
+        settingsView.addEventListener('click', (e) => {
+            const header = e.target.closest('.settings-section-header');
+            if (header) {
+                const accordionItem = header.parentElement;
+                accordionItem.classList.toggle('active');
+                const toggle = header.querySelector('.accordion-toggle');
+                if (accordionItem.classList.contains('active')) {
+                    toggle.textContent = '-';
+                } else {
+                    toggle.textContent = '+';
+                }
+            }
+        });
+    }
 
     function populateSettingsForm(settings) {
         for (const key in settings) {
@@ -784,7 +861,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load settings when the DOM is ready
-    loadSettings();
+    loadSettings().then(() => {
+        // Open the first accordion section by default
+        const firstAccordion = document.querySelector('.settings-accordion');
+        if (firstAccordion) {
+            firstAccordion.classList.add('active');
+            const toggle = firstAccordion.querySelector('.accordion-toggle');
+            if (toggle) {
+                toggle.textContent = '-';
+            }
+        }
+    });
 
     // --- Settings Page Save Button ---
     const saveSettingsBtn = document.getElementById('save-settings-btn');
