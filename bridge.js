@@ -246,6 +246,44 @@
         }
     });
 
+    socket.on('get_page_content', () => {
+        try {
+            console.log('[Bridge] Received get_page_content request.');
+            const pageText = document.body.innerText;
+            socket.emit('page_content_response', { success: true, text: pageText });
+        } catch (error) {
+            console.error('[Bridge] Get page content failed:', error);
+            socket.emit('page_content_response', { success: false, error: error.message });
+        }
+    });
+
+    socket.on('find_elements_by_text', (data) => {
+        try {
+            console.log(`[Bridge] Received find_elements_by_text request for: "${data.text}"`);
+            const searchText = data.text.toLowerCase();
+            const matchingLabels = [];
+
+            // window.labeledElements stores the elements from the last observation
+            if (window.labeledElements) {
+                for (const label in window.labeledElements) {
+                    const element = window.labeledElements[label];
+                    // Ensure we check the element's text content, not the entire page's
+                    const elementText = element.innerText || element.value || element.aria_label || '';
+                    if (elementText && elementText.toLowerCase().includes(searchText)) {
+                        matchingLabels.push(label);
+                    }
+                }
+            }
+
+            console.log(`[Bridge] Found ${matchingLabels.length} elements matching text.`);
+            socket.emit('found_elements_response', { success: true, labels: matchingLabels });
+
+        } catch (error) {
+            console.error('[Bridge] Find elements by text failed:', error);
+            socket.emit('found_elements_response', { success: false, error: error.message });
+        }
+    });
+
     // --- Lifecycle and Recording Setup ---
 
     const IMAGE_STYLE_ID = 'dev-agent-image-style';

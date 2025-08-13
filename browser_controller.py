@@ -36,6 +36,8 @@ class BrowserController:
         if self.socketio:
             self.socketio.on_event('observation_response', self._handle_observation_response, namespace='/bridge')
             self.socketio.on_event('action_response', self._handle_action_response, namespace='/bridge')
+            self.socketio.on_event('page_content_response', self._handle_page_content_response, namespace='/bridge')
+            self.socketio.on_event('found_elements_response', self._handle_found_elements_response, namespace='/bridge')
 
         # Request-response mechanism for browser actions
         self.response_queue = Queue(maxsize=1)
@@ -49,6 +51,16 @@ class BrowserController:
 
     def _handle_action_response(self, data):
         print(f"[SOCKETS] Received action response from bridge: {data}")
+        self.pending_request_event.data = data
+        self.pending_request_event.set()
+
+    def _handle_page_content_response(self, data):
+        print("[SOCKETS] Received page_content response from bridge.")
+        self.pending_request_event.data = data
+        self.pending_request_event.set()
+
+    def _handle_found_elements_response(self, data):
+        print("[SOCKETS] Received found_elements response from bridge.")
         self.pending_request_event.data = data
         self.pending_request_event.set()
 
@@ -257,8 +269,19 @@ class BrowserController:
     # For now, many will return dummy data or indicate they are not implemented.
 
     async def get_page_content(self) -> tuple[bool, str]:
-        """Not implemented in bridge model yet. Returns a placeholder."""
-        return True, "Page content not available in this mode."
+        """Gets the full text content of the current page via the bridge."""
+        print("[ACTION] Requesting page content from bridge...")
+        self.socketio.emit('get_page_content', {}, namespace='/bridge')
+
+        try:
+            response = await self._wait_for_bridge_response()
+            if response.get('success'):
+                return True, response.get('text', '')
+            else:
+                error_msg = response.get('error', 'Failed to get page content.')
+                return False, f"Could not get page content: {error_msg}"
+        except TimeoutError:
+            return False, "Timed out waiting for page content from bridge."
 
     async def get_element_details(self, label: int) -> tuple[bool, dict | str]:
         """Gets element details from the cached list."""
@@ -267,9 +290,20 @@ class BrowserController:
         else:
             return False, f"Invalid label {label}."
 
-    async def find_elements_by_text(self, text_to_find: str) -> tuple[bool, str]:
-        """Not implemented in bridge model yet. Returns a placeholder."""
-        return True, f"Text search for '{text_to_find}' is not available in this mode."
+    async def find_elements_by_text(self, text_to_find: str) -> tuple[bool, list | str]:
+        """Finds elements by text content via the bridge and returns their labels."""
+        print(f"[ACTION] Requesting to find elements by text from bridge for: '{text_to_find}'")
+        self.socketio.emit('find_elements_by_text', {'text': text_to_find}, namespace='/bridge')
+
+        try:
+            response = await self._wait_for_bridge_response()
+            if response.get('success'):
+                return True, response.get('labels', [])
+            else:
+                error_msg = response.get('error', 'Failed to find elements by text.')
+                return False, f"Could not find elements by text: {error_msg}"
+        except TimeoutError:
+            return False, "Timed out waiting for elements from bridge."
 
     async def get_all_links(self) -> tuple[bool, list | str]:
         """
