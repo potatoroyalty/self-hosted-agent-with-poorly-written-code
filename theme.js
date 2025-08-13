@@ -1,18 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('theme-toggle');
     const htmlEl = document.documentElement;
-    const themeLabel = themeToggle.parentElement.nextElementSibling;
+    const themeLabel = document.getElementById('theme-label'); // Use the new ID
 
     // Function to set the theme
     function setTheme(theme) {
         htmlEl.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
-        if (theme === 'dark') {
-            themeToggle.checked = true;
-            themeLabel.textContent = 'Light Mode';
-        } else {
-            themeToggle.checked = false;
-            themeLabel.textContent = 'Dark Mode';
+
+        // Check if themeToggle and themeLabel exist before using them
+        if (themeToggle) {
+            themeToggle.checked = (theme === 'dark');
+        }
+        if (themeLabel) {
+            themeLabel.textContent = (theme === 'dark') ? 'Light Mode' : 'Dark Mode';
         }
     }
 
@@ -21,8 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(savedTheme);
 
     // Event listener for the theme toggle
-    themeToggle.addEventListener('change', () => {
-        const newTheme = themeToggle.checked ? 'dark' : 'light';
-        setTheme(newTheme);
-    });
+    if (themeToggle) {
+        themeToggle.addEventListener('change', () => {
+            const newTheme = themeToggle.checked ? 'dark' : 'light';
+            setTheme(newTheme);
+        });
+    }
 });
