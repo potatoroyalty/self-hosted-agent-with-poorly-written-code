@@ -325,14 +325,15 @@ def handle_generate_script(json_data):
     Handles a request to generate a script from a recording, saves it
     to the 'macros' directory, and registers it in dynamic_tools.json.
     """
-    global recorded_events, ai_model_instance
+    global ai_model_instance
     script_name = json_data.get('script_name')
     objective = json_data.get('objective')
+    events = json_data.get('events')
 
     if not script_name or not objective:
         emit('script_generated', {'success': False, 'error': 'Script name and objective are required.'})
         return
-    if not recorded_events:
+    if not events:
         emit('script_generated', {'success': False, 'error': 'No recorded actions to generate a script from.'})
         return
     if not ai_model_instance:
@@ -365,7 +366,7 @@ def handle_generate_script(json_data):
 
             # Generate the script content
             script_content = await ai_model_instance.generate_script_from_recording(
-                recorded_events, objective, tool_name, class_name, tool_definitions
+                events, objective, tool_name, class_name, tool_definitions
             )
 
             if not script_content:
@@ -502,6 +503,8 @@ def handle_stop_recording():
     socketio.emit('stop_recording_bridge', namespace='/bridge')
     # For now, just print the recorded events to the console.
     print(f"Recorded events: {recorded_events}")
+    # Send the recorded events to the client
+    emit('recording_finished', {'events': recorded_events})
     emit('response', {'data': f'Recording stopped. {len(recorded_events)} events captured.'})
 
 @socketio.on('record_action', namespace='/bridge')
