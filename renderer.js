@@ -620,6 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update the URL bar
             if (newLocation !== 'about:blank') {
                 urlBar.value = newLocation;
+                // Notify the backend that the user has navigated
+                console.log(`[UI] User navigation detected. Notifying backend of new URL: ${newLocation}`);
+                socket.emit('user_navigated', { url: newLocation });
             }
 
             // Inject the bridge script

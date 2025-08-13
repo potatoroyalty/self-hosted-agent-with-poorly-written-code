@@ -29,11 +29,12 @@ FindElementWithVisionTool.model_rebuild()
 AnalyzeVisualLayoutTool.model_rebuild()
 
 class WebAgent:
-    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None, socketio=None, testing=False):
+    def __init__(self, objective, start_url, model_name=config.MAIN_MODEL, supervisor_model_name=config.SUPERVISOR_MODEL, fast_model_name=config.FAST_MODEL, vision_model_name=config.VISION_MODEL, memory_file=config.MEMORY_FILE, critique_file=config.CRITIQUE_FILE, max_steps=config.MAX_STEPS, clarification_request_queue=None, clarification_response_queue=None, navigation_queue=None, paused_event=None, stopped_event=None, socketio=None, testing=False):
         self.objective = objective
         self.start_url = start_url
         self.clarification_request_queue = clarification_request_queue
         self.clarification_response_queue = clarification_response_queue
+        self.navigation_queue = navigation_queue
         self.paused_event = paused_event
         self.stopped_event = stopped_event
         self.socketio = socketio
@@ -247,6 +248,12 @@ class WebAgent:
 
         # Main loop
         for i in range(self.max_steps):
+            # Non-blocking check for user navigation updates
+            if self.navigation_queue and not self.navigation_queue.empty():
+                new_url = self.navigation_queue.get_nowait()
+                print(f"[INFO] Agent received user navigation update. New URL: {new_url}")
+                self.browser.user_did_navigate(new_url)
+
             if self.stopped_event and self.stopped_event.is_set():
                 print("[INFO] Stop event received. Halting agent.")
                 break
