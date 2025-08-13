@@ -18,6 +18,8 @@ function openTab(evt, tabName) {
 }
 
 // Handles view switching in the main content area
+let lastRecording = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
     const agentStatusContainer = document.getElementById('agent-status-container');
@@ -492,10 +494,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show a loading message in the editor
         scriptEditor.innerHTML = '<p>Generating script... Please wait.</p>';
 
+        if (lastRecording.length === 0) {
+            alert('You have not recorded any actions yet. Please record a macro before generating a script.');
+            scriptEditor.innerHTML = '<p class="error">No recording data available.</p>';
+            return;
+        }
+
         socket.emit('generate_script', {
             script_name: scriptName,
-            objective: objective
+            objective: objective,
+            events: lastRecording
         });
+    });
+
+    socket.on('recording_finished', (data) => {
+        console.log('Received recorded events from server.');
+        if (data.events) {
+            lastRecording = data.events;
+            alert(`Recording finished! ${lastRecording.length} actions were captured. You can now generate a script.`);
+        }
     });
 
     socket.on('script_generated', (data) => {
