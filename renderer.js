@@ -34,13 +34,71 @@ document.addEventListener('DOMContentLoaded', () => {
         logContainer.innerHTML += `<p>${sanitizedData}</p>`;
     });
 
+    const logContent = document.getElementById('live-log-content');
+    const logFilterInput = document.getElementById('log-filter-input');
+    const logFilterBtn = document.getElementById('log-filter-btn');
+    const logClearBtn = document.getElementById('log-clear-btn');
+    const MAX_LOG_LINES = 2000; // Set a max number of log lines
+
+    function addLogMessage(message) {
+        // Create a new paragraph element for the log message
+        const logEntry = document.createElement('p');
+        // Sanitize the message to prevent XSS and set it as the content
+        logEntry.textContent = message; // Use textContent for safety
+
+        // Check if the current filter matches the new message
+        const filterText = logFilterInput.value.toLowerCase();
+        if (filterText && !message.toLowerCase().includes(filterText)) {
+            logEntry.style.display = 'none';
+        }
+
+        logContent.appendChild(logEntry);
+
+        // Auto-scroll to the bottom
+        logContent.scrollTop = logContent.scrollHeight;
+
+        // Trim old log entries to prevent performance degradation
+        while (logContent.children.length > MAX_LOG_LINES) {
+            logContent.removeChild(logContent.firstChild);
+        }
+    }
+
     socket.on('log_update', (data) => {
-        const logContainer = document.getElementById('live-log');
-        // Sanitize the data to prevent HTML injection using DOMPurify
-        const sanitizedData = DOMPurify.sanitize(data.data);
-        logContainer.innerHTML += `<p>${sanitizedData}</p>`;
-        // Scroll to the bottom of the log
-        logContainer.scrollTop = logContainer.scrollHeight;
+        // The data from the server might contain multiple newlines
+        const messages = data.data.split('\n');
+        messages.forEach(msg => {
+            if (msg.trim()) { // Add only non-empty lines
+                addLogMessage(msg);
+            }
+        });
+    });
+
+    function filterLogs() {
+        const filterText = logFilterInput.value.toLowerCase();
+        const logEntries = logContent.getElementsByTagName('p');
+        for (let i = 0; i < logEntries.length; i++) {
+            const entry = logEntries[i];
+            if (entry.textContent.toLowerCase().includes(filterText)) {
+                entry.style.display = ''; // Show matching entries
+            } else {
+                entry.style.display = 'none'; // Hide non-matching entries
+            }
+        }
+    }
+
+    // Filter logs when the user types in the input box
+    logFilterInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') {
+            filterLogs();
+        }
+    });
+
+    // Filter logs when the search button is clicked
+    logFilterBtn.addEventListener('click', filterLogs);
+
+    // Clear the log content when the clear button is clicked
+    logClearBtn.addEventListener('click', () => {
+        logContent.innerHTML = '';
     });
 
     socket.on('clarification_request', (data) => {
