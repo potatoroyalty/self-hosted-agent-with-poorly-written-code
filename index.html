@@ -65,6 +65,20 @@
         </aside>
 
         <main class="main-content">
+            <div id="confirmation-modal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <p id="confirmation-message"></p>
+                    <div class="modal-actions">
+                        <button id="confirm-yes-btn">Yes</button>
+                        <button id="confirm-no-btn">No</button>
+                    </div>
+                </div>
+            </div>
+            <div id="notification-container"></div>
+            <div id="loading-overlay">
+                <div class="spinner-large"></div>
+                <div id="loading-text">Loading...</div>
+            </div>
             <div id="recording-banner" class="recording-banner" style="display: none;">
                 Recording... Perform the actions you want the agent to learn.
             </div>
@@ -112,6 +126,9 @@
                 <div id="script-editor-container">
                     <div id="script-editor" class="code-editor">
                         <p>// Generated script will appear here</p>
+                    </div>
+                    <div class="editor-actions">
+                        <button id="save-script-btn">Save Script</button>
                     </div>
                 </div>
             </div>

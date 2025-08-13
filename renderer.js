@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const event = script ? 'run_script' : 'start_agent';
             socket.emit(event, payload);
         } else if (!script) {
-             alert("Please enter an objective.");
+             showNotification("Please enter an objective before starting.", "error");
         }
     }
 
@@ -233,16 +233,71 @@ document.addEventListener('DOMContentLoaded', () => {
     const logsView = document.getElementById('logs-view');
     const settingsView = document.getElementById('settings-view');
 
-    function switchView(viewToShow, activeLink) {
-        // Hide all views
-        views.forEach(view => {
-            view.style.display = 'none';
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingText = document.getElementById('loading-text');
+    let currentView = null;
+
+    function showLoading(text = 'Loading...') {
+        loadingText.textContent = text;
+        loadingOverlay.style.display = 'flex';
+    }
+
+    function hideLoading() {
+        loadingOverlay.style.display = 'none';
+    }
+
+    const notificationContainer = document.getElementById('notification-container');
+
+    function showNotification(message, type = 'info', duration = 5000) {
+        const notif = document.createElement('div');
+        notif.className = `notification ${type}`;
+        notif.textContent = message;
+
+        // Manually control fade-out for removal
+        const fadeOutAnimation = `fadeOutNotification 0.5s ${duration / 1000 - 0.5}s forwards`;
+        notif.style.animation = `slideIn 0.5s forwards, fadeOut 0.5s ${duration / 1000 - 0.5}s forwards`;
+
+
+        notif.addEventListener('click', () => {
+            notif.style.animation = 'fadeOutNotification 0.5s forwards';
+            notif.addEventListener('animationend', () => {
+                if (notificationContainer.contains(notif)) {
+                    notificationContainer.removeChild(notif);
+                }
+            });
         });
+
+        setTimeout(() => {
+             if (notificationContainer.contains(notif)) {
+                notificationContainer.removeChild(notif);
+            }
+        }, duration);
+
+        notificationContainer.appendChild(notif);
+    }
+
+    function switchView(viewToShow, activeLink) {
+        if (currentView === viewToShow) {
+            return; // Don't do anything if it's the same view
+        }
+
+        // Hide current view
+        if (currentView) {
+            // Add a class to trigger fade-out animation
+            currentView.classList.add('view-hidden');
+            // Hide it after the animation
+            setTimeout(() => {
+                currentView.style.display = 'none';
+                currentView.classList.remove('view-hidden');
+            }, 500); // Must match animation duration
+        }
 
         // Show the target view
         if (viewToShow) {
-            // #browser-view and #generator-view are flex containers.
-            viewToShow.style.display = (viewToShow.id === 'browser-view' || viewToShow.id === 'generator-view') ? 'flex' : 'block';
+             // Remove any hiding classes
+            viewToShow.classList.remove('view-hidden');
+            // Set display style
+            viewToShow.style.display = (viewToShow.id === 'browser-view' || viewToShow.id === 'generator-view' || viewToShow.id === 'proxies-view' || viewToShow.id === 'logs-view' || viewToShow.id === 'settings-view') ? 'flex' : 'block';
         }
 
         // Update active class on nav links
@@ -252,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeLink) {
             activeLink.classList.add('active');
         }
+        currentView = viewToShow;
     }
 
     // Add event listeners
@@ -272,6 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadScripts() {
+        showLoading('Loading scripts...');
         try {
             const response = await fetch('/get_scripts');
             if (!response.ok) {
@@ -301,22 +358,47 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error loading scripts:', error);
             const scriptList = document.getElementById('script-list');
             scriptList.innerHTML = '<li>Error loading scripts.</li>';
+        } finally {
+            hideLoading();
         }
     }
 
-    function deleteScript(scriptName) {
-        if (confirm(`Are you sure you want to delete the script: ${scriptName}?`)) {
+    const confirmationModal = document.getElementById('confirmation-modal');
+    const confirmationMessage = document.getElementById('confirmation-message');
+    const confirmYesBtn = document.getElementById('confirm-yes-btn');
+    const confirmNoBtn = document.getElementById('confirm-no-btn');
+
+    function showConfirmation(message) {
+        return new Promise((resolve) => {
+            confirmationMessage.textContent = message;
+            confirmationModal.style.display = 'flex';
+
+            confirmYesBtn.onclick = () => {
+                confirmationModal.style.display = 'none';
+                resolve(true);
+            };
+
+            confirmNoBtn.onclick = () => {
+                confirmationModal.style.display = 'none';
+                resolve(false);
+            };
+        });
+    }
+
+    async function deleteScript(scriptName) {
+        const confirmed = await showConfirmation(`Are you sure you want to delete the script: ${scriptName}?`);
+        if (confirmed) {
             socket.emit('delete_script', { script_name: scriptName });
         }
     }
 
     socket.on('script_deleted', (data) => {
         if (data.success) {
-            alert(`Script '${data.script_name}' deleted successfully.`);
+            showNotification(`Script '${data.script_name}' deleted successfully.`, 'success');
             loadScripts(); // Refresh the list
             socket.emit('request_script_list'); // Refresh the dropdown in browser view
         } else {
-            alert(`Error deleting script: ${data.error}`);
+            showNotification(`Error deleting script: ${data.error}`, 'error');
         }
     });
 
@@ -327,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadProxies() {
+        showLoading('Loading proxies...');
         try {
             const response = await fetch('/get_proxies');
             if (!response.ok) {
@@ -345,6 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error loading proxies:', error);
             const proxyTableBody = document.getElementById('proxy-table-body');
             proxyTableBody.innerHTML = '<tr><td colspan="3">Error loading proxies.</td></tr>';
+        } finally {
+            hideLoading();
         }
     }
 
@@ -369,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addProxyRow();
     });
 
-    document.getElementById('save-proxies-btn').addEventListener('click', () => {
+    document.getElementById('save-proxies-btn').addEventListener('click', async () => {
         const proxyTableBody = document.getElementById('proxy-table-body');
         const rows = proxyTableBody.querySelectorAll('tr');
         const proxies = [];
@@ -381,23 +466,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (confirm(`Are you sure you want to save these ${proxies.length} proxies? This will overwrite the existing list.`)) {
+        const confirmed = await showConfirmation(`Are you sure you want to save these ${proxies.length} proxies? This will overwrite the existing list.`);
+        if (confirmed) {
             socket.emit('save_proxies', { proxies: proxies });
         }
     });
 
     socket.on('proxies_saved', (data) => {
         if (data.success) {
-            alert('Proxies saved successfully!');
+            showNotification('Proxies saved successfully!', 'success');
             loadProxies(); // Refresh the list
         } else {
-            alert(`Error saving proxies: ${data.error}`);
+            showNotification(`Error saving proxies: ${data.error}`, 'error');
         }
     });
 
     async function fetchLog(logType, elementId) {
         const element = document.getElementById(elementId);
-        element.textContent = 'Loading...'; // Show loading indicator
+        showLoading(`Fetching ${logType} log...`);
         try {
             const response = await fetch(`/get_log_content/${logType}`);
             if (!response.ok) {
@@ -411,22 +497,25 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(`Error loading ${logType} log:`, error);
             element.textContent = `Error loading log: ${error.message}`;
+        } finally {
+            hideLoading();
         }
     }
 
-    function clearLog(logType) {
-        if (confirm(`Are you sure you want to clear the ${logType} log? This action cannot be undone.`)) {
+    async function clearLog(logType) {
+        const confirmed = await showConfirmation(`Are you sure you want to clear the ${logType} log? This action cannot be undone.`);
+        if (confirmed) {
             socket.emit('clear_log', { log_type: logType });
         }
     }
 
     socket.on('log_cleared', (data) => {
         if (data.success) {
-            alert(`${data.log_type} log cleared successfully.`);
+            showNotification(`${data.log_type} log cleared successfully.`, 'success');
             // Refresh the view
             fetchLog(data.log_type, `${data.log_type}-log-content`);
         } else {
-            alert(`Error clearing log: ${data.error}`);
+            showNotification(`Error clearing log: ${data.error}`, 'error');
         }
     });
 
@@ -449,7 +538,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Set the initial view
-    switchView(browserView, browserLink);
+    // We need to set the currentView manually for the first time
+    browserView.style.display = 'flex';
+    currentView = browserView;
+
 
     // --- Quick Toggles Logic ---
     const quickToggles = [
@@ -484,13 +576,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const objective = scriptObjectiveInput.value.trim();
 
         if (!scriptName || !objective) {
-            alert('Please provide both a script name and an objective.');
+            showNotification('Please provide both a script name and an objective.', 'error');
             return;
         }
 
         console.log(`Requesting script generation for name: '${scriptName}' and objective: '${objective}'`);
-        // Show a loading message in the editor
-        scriptEditor.innerHTML = '<p>Generating script... Please wait.</p>';
+        showLoading('Generating script...');
 
         socket.emit('generate_script', {
             script_name: scriptName,
@@ -498,7 +589,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const saveScriptBtn = document.getElementById('save-script-btn');
+    saveScriptBtn.style.display = 'none'; // Hide by default
+
+    saveScriptBtn.addEventListener('click', () => {
+        const scriptName = scriptNameInput.value.trim();
+        const scriptContent = scriptEditor.textContent;
+
+        if (!scriptName || !scriptContent) {
+            showNotification('Script name or content is missing.', 'error');
+            return;
+        }
+
+        socket.emit('save_script', {
+            script_name: scriptName,
+            script_content: scriptContent
+        });
+    });
+
+    socket.on('script_saved', (data) => {
+        if (data.success) {
+            showNotification(`Script '${data.script_name}' saved successfully!`, 'success');
+            // Refresh the script list in the Browser view
+            socket.emit('request_script_list');
+        } else {
+            showNotification(`Error saving script: ${data.error}`, 'error');
+        }
+    });
+
     socket.on('script_generated', (data) => {
+        hideLoading();
         console.log('Received generated script from server.');
         if (data.success) {
             // Display the generated script in the editor
@@ -510,16 +630,18 @@ document.addEventListener('DOMContentLoaded', () => {
             pre.appendChild(code);
             scriptEditor.innerHTML = ''; // Clear previous content
             scriptEditor.appendChild(pre);
+            saveScriptBtn.style.display = 'block'; // Show the save button
 
             // Notify the user
-            alert(`Script '${data.script_name}' generated successfully!`);
+            showNotification(`Script '${data.script_name}' generated successfully!`, 'success');
 
             // Refresh the script list in the Browser view
             socket.emit('request_script_list');
 
         } else {
             scriptEditor.innerHTML = `<p class="error">Error generating script: ${data.error}</p>`;
-            alert(`Error generating script: ${data.error}`);
+            showNotification(`Error generating script: ${data.error}`, 'error');
+            saveScriptBtn.style.display = 'none';
         }
     });
 
