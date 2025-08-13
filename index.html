@@ -394,7 +394,14 @@
                 <button class="tab-link" onclick="openTab(event, 'task-queue')">Task Queue</button>
             </div>
             <div id="live-log" class="tab-content" style="display: block;">
-                <p>Live log updates will appear here...</p>
+                <div class="log-controls">
+                    <input type="text" id="log-filter-input" placeholder="Filter logs...">
+                    <button id="log-filter-btn">Search</button>
+                    <button id="log-clear-btn">Clear</button>
+                </div>
+                <div id="live-log-content" class="log-content-area">
+                    <!-- Log messages will be dynamically inserted here -->
+                </div>
             </div>
             <div id="inspector" class="tab-content">
                 <p>Element inspector details will appear here...</p>
