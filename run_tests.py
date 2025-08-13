@@ -80,6 +80,15 @@ async def main():
 
         print("\n[SUCCESS] All test steps executed and socket emits were called as expected.")
 
+        # Test the security filter
+        print("[TEST] Testing security filter...")
+        # Simulate observing a page with malicious content
+        malicious_page_description = "This page contains a link to a malicious file: virus.exe"
+        is_threat, threat_details = agent.security_filter.scan_text(malicious_page_description)
+        assert is_threat is True
+        assert "Detected suspicious pattern: \\.exe\\b" in threat_details
+        print("[SUCCESS] Security filter test passed.")
+
     except Exception as e:
         print(f"\n[ERROR] An error occurred during the test: {e}")
         import traceback
