@@ -46,6 +46,7 @@ DEFAULT_SETTINGS = {
     },
 
     # Browser Configuration
+    "AUTO_OPEN_BROWSER": True,
     "HEADLESS_BROWSER": False,
     "BROWSER_TYPE": "chromium",
     "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
