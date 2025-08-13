@@ -115,6 +115,21 @@ class BrowserController:
             action = {"type": "goto", "url": url}
             self.website_graph.add_edge(from_url, self.current_url, action)
 
+    def user_did_navigate(self, new_url: str):
+        """
+        Updates the controller's state when the user navigates the browser manually.
+        This method should not trigger any browser actions, only update internal state.
+        """
+        from_url = self.current_url
+        self.current_url = new_url
+        print(f"[STATE] URL updated by user action: from '{from_url}' to '{self.current_url}'")
+
+        if self.website_graph:
+            self.website_graph.add_page(from_url)
+            self.website_graph.add_page(self.current_url, page_title="Title (Unknown)")
+            action = {"type": "user_navigation"}
+            self.website_graph.add_edge(from_url, self.current_url, action)
+
     async def observe_and_annotate(self, step: int) -> Tuple[str, List[Dict]]:
         """
         Captures a screenshot via the bridge, annotates it with labels on interactive elements,

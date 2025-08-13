@@ -41,6 +41,7 @@ agent_stopped = threading.Event()
 agent_status = "Idle"
 clarification_request_queue = Queue()
 clarification_response_queue = Queue()
+navigation_queue = Queue()
 
 # --- Recording State ---
 is_recording = False
@@ -59,7 +60,7 @@ except Exception as e:
     ai_model_instance = None
 
 
-def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event, socketio_instance):
+def run_agent_in_background(objective, req_q, res_q, nav_q, paused_event, stopped_event, socketio_instance):
     """Runs the agent task in a separate thread."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -69,6 +70,7 @@ def run_agent_in_background(objective, req_q, res_q, paused_event, stopped_event
             objective,
             clarification_request_queue=req_q,
             clarification_response_queue=res_q,
+            navigation_queue=nav_q,
             paused_event=paused_event,
             stopped_event=stopped_event,
             socketio=socketio_instance
@@ -253,7 +255,7 @@ def handle_start_agent(json_data):
     # Start the agent in a new thread
     agent_thread = threading.Thread(
         target=run_agent_in_background,
-        args=(objective, clarification_request_queue, clarification_response_queue, agent_paused, agent_stopped, socketio)
+        args=(objective, clarification_request_queue, clarification_response_queue, navigation_queue, agent_paused, agent_stopped, socketio)
     )
     agent_thread.start()
 
@@ -294,6 +296,16 @@ def handle_clarification_response(json_data):
     """Handles the user's response to a clarification request."""
     print(f"Received clarification response: {json_data}")
     clarification_response_queue.put(json_data)
+
+@socketio.on('user_navigated')
+def handle_user_navigated(json_data):
+    """
+    Handles a notification from the UI that the user has navigated the browser iframe.
+    """
+    url = json_data.get('url')
+    if url and agent_thread and agent_thread.is_alive():
+        print(f"[UI] Received user navigation to: {url}. Queueing for agent.")
+        navigation_queue.put(url)
 
 @socketio.on('update_config')
 def handle_update_config(json_data):

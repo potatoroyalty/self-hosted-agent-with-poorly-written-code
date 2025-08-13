@@ -5,7 +5,7 @@ import asyncio
 from agent import WebAgent
 import config
 
-async def run_agent_task(objective, url=config.START_URL, model=config.MAIN_MODEL, supervisor_model=config.SUPERVISOR_MODEL, fast_model=config.FAST_MODEL, vision_model=config.VISION_MODEL, max_steps=config.MAX_STEPS, low_memory=False, clarification_request_queue=None, clarification_response_queue=None, paused_event=None, stopped_event=None, socketio=None):
+async def run_agent_task(objective, url=config.START_URL, model=config.MAIN_MODEL, supervisor_model=config.SUPERVISOR_MODEL, fast_model=config.FAST_MODEL, vision_model=config.VISION_MODEL, max_steps=config.MAX_STEPS, low_memory=False, clarification_request_queue=None, clarification_response_queue=None, navigation_queue=None, paused_event=None, stopped_event=None, socketio=None):
     # Override models for low memory mode
     if low_memory or config.LOW_MEMORY_MODE:
         print("[INFO] Low memory mode enabled. Using smaller models.")
@@ -25,6 +25,7 @@ async def run_agent_task(objective, url=config.START_URL, model=config.MAIN_MODE
             max_steps=max_steps,
             clarification_request_queue=clarification_request_queue,
             clarification_response_queue=clarification_response_queue,
+            navigation_queue=navigation_queue,
             paused_event=paused_event,
             stopped_event=stopped_event,
             socketio=socketio
