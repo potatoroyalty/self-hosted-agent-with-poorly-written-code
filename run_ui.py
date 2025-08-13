@@ -577,7 +577,13 @@ def stream_status():
 
 def open_browser():
     """Opens the default web browser to the application's URL."""
-    webbrowser.open_new("http://127.0.0.1:5000")
+    print("[INFO] Attempting to open web browser...")
+    try:
+        webbrowser.open_new("http://127.0.0.1:5000")
+        print("[INFO] Web browser open command issued successfully.")
+    except Exception as e:
+        print(f"[ERROR] Failed to open web browser: {e}")
+        print("[INFO] Please open http://127.0.0.1:5000 in your browser manually.")
 
 if __name__ == "__main__":
     # Start the background tasks
@@ -587,7 +593,8 @@ if __name__ == "__main__":
 
     print("Starting web server with SocketIO...")
     # Open the web browser 1 second after starting the server
-    Timer(1, open_browser).start()
+    if config.AUTO_OPEN_BROWSER:
+        Timer(1, open_browser).start()
 
     # Using host='0.0.0.0' makes the server accessible from the local network
     # allow_unsafe_werkzeug is required for running in this threaded mode
