@@ -33,7 +33,7 @@ class GoToPageInput(BaseModel):
 
 class GoToPageTool(BrowserTool):
     name: str = "go_to_page"
-    description: str = "Navigates the browser to a specified URL."
+    description: str = "Navigates to a specific URL. Use when you know the exact web address."
     args_schema: Type[BaseModel] = GoToPageInput
 
     def _run(self, url: str) -> str:
@@ -48,7 +48,7 @@ class ClickElementInput(BaseModel):
 
 class ClickElementTool(BrowserTool):
     name: str = "click_element"
-    description: str = "Clicks an element identified by its label."
+    description: str = "Clicks a specific element on the page, identified by its label."
     args_schema: Type[BaseModel] = ClickElementInput
 
     def _run(self, element_label: int) -> str:
@@ -65,7 +65,7 @@ class TypeTextInput(BaseModel):
 
 class TypeTextTool(BrowserTool):
     name: str = "type_text"
-    description: str = "Types text into an element identified by its label."
+    description: str = "Types text into a specific input field, identified by its label."
     args_schema: Type[BaseModel] = TypeTextInput
 
     def _run(self, element_label: int, text: str) -> str:
@@ -81,7 +81,7 @@ class GetElementDetailsInput(BaseModel):
 
 class GetElementDetailsTool(BrowserTool):
     name: str = "get_element_details"
-    description: str = "Gets detailed information about a specific labeled element."
+    description: str = "Fetches detailed information (like text, attributes) about a specific element."
     args_schema: Type[BaseModel] = GetElementDetailsInput
 
     def _run(self, label: int) -> str:
@@ -94,7 +94,7 @@ class GetElementDetailsTool(BrowserTool):
 
 class TakeScreenshotTool(BrowserTool):
     name: str = "take_screenshot"
-    description: str = "Takes a screenshot of the current page and returns its base64 encoded data."
+    description: str = "Captures a screenshot of the current page and returns its base64 encoded data."
 
     def _run(self) -> str:
         encoded_image, _ = asyncio.run(self.controller.observe_and_annotate(step=0)) # Step can be managed externally
@@ -109,7 +109,7 @@ class ScrollPageInput(BaseModel):
 
 class ScrollPageTool(BrowserTool):
     name: str = "scroll_page"
-    description: str = "Scrolls the page up or down."
+    description: str = "Scrolls the current page view up or down to see more content."
     args_schema: Type[BaseModel] = ScrollPageInput
 
     def _run(self, direction: str) -> str:
@@ -122,7 +122,7 @@ class ScrollPageTool(BrowserTool):
 
 class GetPageContentTool(BrowserTool):
     name: str = "get_page_content"
-    description: str = "Gets the cleaned text content of the current page."
+    description: str = "Extracts and returns all visible text content from the current page."
 
     def _run(self) -> str:
         success, content = asyncio.run(self.controller.get_page_content())
@@ -137,7 +137,7 @@ class FindElementsByTextInput(BaseModel):
 
 class FindElementsByTextTool(BrowserTool):
     name: str = "find_elements_by_text"
-    description: str = "Finds all elements containing the specified text."
+    description: str = "Finds all elements on the page that contain the specified text."
     args_schema: Type[BaseModel] = FindElementsByTextInput
 
     def _run(self, text_to_find: str) -> str:
@@ -150,7 +150,7 @@ class FindElementsByTextTool(BrowserTool):
 
 class GetAllLinksTool(BrowserTool):
     name: str = "get_all_links"
-    description: str = "Gets a list of all hyperlinks on the page."
+    description: str = "Returns a list of all hyperlinks found on the current page."
 
     def _run(self) -> str:
         success, links = asyncio.run(self.controller.get_all_links())
@@ -165,7 +165,7 @@ class PerformGoogleSearchInput(BaseModel):
 
 class PerformGoogleSearchTool(BrowserTool):
     name: str = "perform_google_search"
-    description: str = "Performs a Google search and navigates to the results page."
+    description: str = "Performs a Google search for the given query."
     args_schema: Type[BaseModel] = PerformGoogleSearchInput
 
     def _run(self, query: str) -> str:
@@ -182,7 +182,7 @@ class WriteFileInput(BaseModel):
 
 class WriteFileTool(BaseTool):
     name: str = "write_file"
-    description: str = "Writes content to a specified file."
+    description: str = "Writes content to a local file. Use for saving information or creating scripts."
     args_schema: Type[BaseModel] = WriteFileInput
 
     def _run(self, file_path: str, content: str) -> str:
@@ -202,7 +202,7 @@ class ExecuteScriptInput(BaseModel):
 
 class ExecuteScriptTool(BaseTool):
     name: str = "execute_script"
-    description: str = "Executes a script using the specified interpreter."
+    description: str = "Executes a local script (e.g., Python, Bash) and returns the output."
     args_schema: Type[BaseModel] = ExecuteScriptInput
 
     def _run(self, script_path: str, interpreter: str) -> str:
@@ -237,7 +237,7 @@ class CreateMacroInput(BaseModel):
 
 class CreateMacroTool(BrowserTool):
     name: str = "create_macro"
-    description: str = "Creates a new macro (a sequence of actions) to be used in the future. Use this when you identify a repetitive task."
+    description: str = "Defines a new, reusable macro-tool for a repetitive sequence of actions."
     args_schema: Type[BaseModel] = CreateMacroInput
 
     def _run(self, objective: str) -> str:
@@ -256,7 +256,7 @@ class NavigateToURLInput(BaseModel):
 
 class NavigateToURLTool(BrowserTool):
     name: str = "navigate_to_url"
-    description: str = "Navigates to a URL using the most efficient path known. Use this to go to a page that you have likely visited before."
+    description: str = "Navigates to a URL using the most efficient known path, like using bookmarks."
     args_schema: Type[BaseModel] = NavigateToURLInput
 
     def _run(self, url: str) -> str:
@@ -294,7 +294,7 @@ class AskUserForClarificationInput(BaseModel):
 
 class AskUserForClarificationTool(BaseTool):
     name: str = "ask_user_for_clarification"
-    description: str = "Asks the user for clarification when the agent is stuck or has low confidence. Presents the user with the current world model and a list of potential actions to choose from."
+    description: str = "Asks the human user for help or clarification when you are stuck or have low confidence."
     args_schema: Type[BaseModel] = AskUserForClarificationInput
     clarification_request_queue: Queue
     clarification_response_queue: Queue
@@ -343,7 +343,7 @@ class UpsertInMemoryInput(BaseModel):
 
 class UpsertInMemoryTool(MemoryTool):
     name: str = "upsert_in_memory"
-    description: str = "Adds or updates a key-value pair in the agent's working memory. Use this to remember information that you might need later in the task."
+    description: str = "Saves or updates a key-value pair in your working memory for later use."
     args_schema: Type[BaseModel] = UpsertInMemoryInput
 
     def _run(self, key: str, value: str) -> str:
@@ -359,7 +359,7 @@ class FinishInput(BaseModel):
 
 class FinishTool(BaseTool):
     name: str = "finish"
-    description: str = "Use this tool to signify that you have completed the objective. Provide the final answer or a summary of the outcome."
+    description: str = "Use this tool to successfully complete the objective with a final answer."
     args_schema: Type[BaseModel] = FinishInput
 
     def _run(self, answer: str) -> str:

@@ -2,6 +2,8 @@ import ollama
 import re
 import json
 import sys
+import asyncio
+import time
 from constitution import AGENT_CONSTITUTION, ACTION_CONSTITUTION, SUPERVISOR_CONSTITUTION
 from typing import Any, List, Mapping, Optional
 
@@ -11,6 +13,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatResult, ChatGeneration, Generation
 from pydantic import Field
 from ollama import ResponseError, RequestError
+import config
 
 class OllamaChatModel(BaseChatModel):
     model_name: str
@@ -44,7 +47,6 @@ class OllamaChatModel(BaseChatModel):
                 content = message.content
                 images = []
                 if isinstance(content, list):
-                    # Handle multimodal content
                     text_content = ""
                     for item in content:
                         if isinstance(item, dict) and item.get("type") == "text":
@@ -52,41 +54,65 @@ class OllamaChatModel(BaseChatModel):
                         elif isinstance(item, dict) and item.get("type") == "image_url":
                             image_url = item.get("image_url", {}).get("url", "")
                             if image_url.startswith("data:image/"):
-                                # Extract base64 part
                                 images.append(image_url.split(",")[1])
                 else:
                     text_content = content
-
                 ollama_messages.append({"role": "user", "content": text_content, "images": images})
             elif isinstance(message, AIMessage):
                 ollama_messages.append({"role": "assistant", "content": message.content})
-            # Add other message types if needed
-        try:
-            response_content = ""
-            async for chunk in await self.async_client.chat(
-                model=self.model_name,
-                messages=ollama_messages,
-                stream=True,
-                options=kwargs.get("options", {})
-            ):
-                content_chunk = chunk['message']['content']
-                response_content += content_chunk
-                if run_manager:
-                    await run_manager.on_llm_new_token(content_chunk)
 
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=response_content))])
-        except ResponseError as e:
-            print(f"[ERROR] Ollama API Error: {e.error}")
-            # Handle the error appropriately, maybe return a default response
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=""))])
-        except RequestError as e:
-            print(f"[ERROR] Ollama Request Error: {e.error}")
-            # Handle the error appropriately
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=""))])
-        except Exception as e:
-            print(f"[ERROR] An unexpected error occurred: {e}")
-            # Handle the error appropriately
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(content=""))])
+        max_retries = 3
+        backoff_factor = 2
+        initial_delay = 1
+
+        for attempt in range(max_retries):
+            try:
+                response_content = ""
+                async for chunk in await self.async_client.chat(
+                    model=self.model_name,
+                    messages=ollama_messages,
+                    stream=True,
+                    options=kwargs.get("options", {})
+                ):
+                    content_chunk = chunk['message']['content']
+                    response_content += content_chunk
+                    if run_manager:
+                        await run_manager.on_llm_new_token(content_chunk)
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content=response_content))])
+
+            except ResponseError as e:
+                if e.status_code == 404:
+                    error_message = f"Ollama API Error: Model '{self.model_name}' not found. Please ensure the model is installed and available."
+                    print(f"[ERROR] {error_message}")
+                    # Non-recoverable, so we don't retry
+                    return ChatResult(generations=[ChatGeneration(message=AIMessage(content=f"Error: {error_message}"))])
+                elif e.status_code >= 500:
+                    error_message = f"Ollama Server Error (status {e.status_code}): {e.error}. Retrying..."
+                    print(f"[ERROR] {error_message}")
+                else:
+                    error_message = f"Ollama API Error (status {e.status_code}): {e.error}."
+                    print(f"[ERROR] {error_message}")
+                    # Non-recoverable for other client-side errors
+                    return ChatResult(generations=[ChatGeneration(message=AIMessage(content=f"Error: {error_message}"))])
+
+            except RequestError as e:
+                error_message = f"Ollama Request Error: {e.error}. Check your connection to the Ollama server."
+                print(f"[ERROR] {error_message}")
+                # This might be a transient network issue, so we can retry.
+
+            except Exception as e:
+                error_message = f"An unexpected error occurred: {e}"
+                print(f"[ERROR] {error_message}")
+                # We can retry for unexpected errors as they might be transient.
+
+            if attempt < max_retries - 1:
+                delay = initial_delay * (backoff_factor ** attempt)
+                print(f"[INFO] Waiting {delay} seconds before retrying...")
+                await asyncio.sleep(delay)
+            else:
+                final_error = "Max retries reached. Could not get a response from the model."
+                print(f"[ERROR] {final_error}")
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content=f"Error: {final_error}"))])
 
 
     @property
@@ -205,6 +231,35 @@ class AIModel:
             # Fallback to default constitutions
             self.agent_constitution = AGENT_CONSTITUTION
             self.action_constitution = ACTION_CONSTITUTION
+
+    def update_models_based_on_objective(self, objective: str):
+        if not config.ENABLE_DYNAMIC_MODEL_SELECTION:
+            return
+
+        objective_lower = objective.lower()
+        task_mapping = config.TASK_MODEL_MAPPING
+        selected_map = task_mapping.get("default", {})
+
+        for keyword, model_map in task_mapping.items():
+            if keyword in objective_lower:
+                selected_map = model_map
+                break
+
+        print(f"[INFO] Dynamic model selection activated. Using mapping for: '{keyword}'")
+
+        # Update model names
+        self.main_model_name = selected_map.get("MAIN_MODEL", self.main_model_name)
+        self.supervisor_model_name = selected_map.get("SUPERVISOR_MODEL", self.supervisor_model_name)
+        self.fast_model_name = selected_map.get("FAST_MODEL", self.fast_model_name)
+        self.vision_model_name = selected_map.get("VISION_MODEL", self.vision_model_name)
+
+        # Re-initialize the models with the new names
+        self.main_model = OllamaChatModel(model_name=self.main_model_name)
+        self.supervisor_model = OllamaChatModel(model_name=self.supervisor_model_name)
+        self.fast_model = OllamaChatModel(model_name=self.fast_model_name)
+        self.vision_model = OllamaChatModel(model_name=self.vision_model_name)
+
+        print(f"[INFO] Models updated: Main='{self.main_model_name}', Supervisor='{self.supervisor_model_name}', Fast='{self.fast_model_name}', Vision='{self.vision_model_name}'")
 
 
     async def get_contextual_overview(self, encoded_image: str) -> str:

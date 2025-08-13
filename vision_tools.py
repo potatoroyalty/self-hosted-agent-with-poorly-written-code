@@ -95,6 +95,10 @@ Your goal is to identify the single correct UI element from a list of candidates
 User Query: "{query}"
 
 Here are the candidates. Each has a label, its visible text, and an image of the element itself.
+Review the images and select the one that is the best fit for the query.
+
+**If multiple elements seem to match, prioritize the one that is most visually prominent or appears to be the main interactive element for the query's context.**
+
 Respond with a single JSON object with a single key "label" containing the numeric label of the best element. Example: {{"label": 2}}
 
 Candidates:
