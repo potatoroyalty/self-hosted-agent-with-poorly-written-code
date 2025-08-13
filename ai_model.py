@@ -284,67 +284,6 @@ Labeled elements provided:
         response = await self.vision_model.agenerate(messages=[messages])
         return response.generations[0][0].message.content.strip()
 
-    async def get_reasoning_and_action(self, objective, history, page_description, self_critique, encoded_image, working_memory):
-        prompt = f"""
-        {self.agent_constitution}
-
-        # Main Objective
-        Your overall objective is: "{objective}".
-        
-        # Critical Self-Critique from Last Run
-        A previous version of yourself made a mistake. Here is a critical instruction to help you avoid it: "{self_critique}". You MUST take this instruction into account.
-        You MUST take this instruction into account.
-
-        # Factual Description of the Current Screen
-        "{page_description}"
-
-        # Working Memory
-        You have access to a working memory that contains information you have gathered.
-        {working_memory}
-
-        # History of Past Steps (for context)
-        <history>{history}</history>
-
-        # Your Task
-        Follow your cognitive cycle precisely. Respond with a single JSON object containing "reflection", "world_model", "plan", and "action".
-        """
-        print("[AI RESPONSE]")
-        messages = [
-            HumanMessage(
-                content=[
-                    {"type": "text", "text": prompt},
-                ]
-            )
-        ]
-        response = await self.main_model.agenerate(messages=[messages])
-        response_text = response.generations[0][0].message.content
-
-        try:
-            # Use a more robust regex to find the JSON block, even with markdown wrappers
-            json_match = re.search(r"```json\s*({{.*?}})\s*```|({{.*}})", response_text, re.DOTALL)
-            if not json_match:
-                raise ValueError("No valid JSON block found in the AI's response.")
-
-            # The regex has two capture groups; one will be None.
-            json_str = json_match.group(1) or json_match.group(2)
-            # Allow control characters like newlines within the JSON strings
-            parsed_json = json.loads(json_str.strip(), strict=False)
-            
-            required_keys = ["reflection", "world_model", "plan", "action"]
-            for key in required_keys:
-                if key not in parsed_json:
-                    raise ValueError(f"The JSON response is missing the required key: '{key}'")
-
-            return parsed_json
-            
-        except (json.JSONDecodeError, ValueError) as e:
-            print(f"[ERROR] Failed to parse AI response: {e}")
-            return {
-                "reflection": "Error parsing the last response. The response was not valid JSON or was missing required keys.",
-                "world_model": "I encountered an error parsing my previous response. I need to re-evaluate the situation and try again.",
-                "plan": ["Re-observe the page and try to generate a valid action."],
-                "action": {"action_type": "pause_for_user", "details": {"instruction_to_user": "I failed to process my last action. I will now re-evaluate the page and try again."}}
-            }
 
     async def validate_action(self, objective: str, page_summary: str, proposed_action_json: dict) -> bool:
         """
