@@ -9,6 +9,7 @@ from browser_controller import BrowserController
 from website_graph import WebsiteGraph
 from working_memory import WorkingMemory
 from strategy_manager import StrategyManager, StrategyCallbackHandler
+from langchain.schema import AgentAction
 from langchain_agent import (
     BrowserTool, MacroTool, MemoryTool,
     GoToPageTool, ClickElementTool, TypeTextTool, GetElementDetailsTool,
@@ -338,6 +339,10 @@ class WebAgent:
                 tool_to_execute = next((t for t in self.tools if t.name == tool_name), None)
                 if tool_to_execute:
                     try:
+                        # Manually call the callback handler to record the action
+                        await self.strategy_callback_handler.on_agent_action(
+                            AgentAction(tool=tool_name, tool_input=params, log="")
+                        )
                         result = await tool_to_execute.arun(**params)
                         self.last_action_result = result
                         print(f"[INFO] Action '{tool_name}' executed successfully. Result: {result}")
