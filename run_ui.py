@@ -307,15 +307,22 @@ def handle_user_navigated(json_data):
         print(f"[UI] Received user navigation to: {url}. Queueing for agent.")
         navigation_queue.put(url)
 
-@socketio.on('update_config')
-def handle_update_config(json_data):
-    """Handles configuration updates from the UI toggles."""
-    key = json_data.get('key')
-    value = json_data.get('value')
-    if key:
-        print(f"[CONFIG] Updated '{key}' to '{value}'")
-        config.update_setting(key, value)
-        emit('response', {'data': f"Configuration '{key}' updated to '{value}'."})
+@socketio.on('save_settings')
+def handle_save_settings(json_data):
+    """Handles a request to save the entire settings configuration."""
+    settings = json_data.get('settings')
+    if settings is None:
+        emit('settings_saved', {'success': False, 'error': 'No settings data provided.'})
+        return
+
+    try:
+        # We can optionally validate the settings here before saving
+        config.save_config(settings)
+        print("Settings saved successfully.")
+        emit('settings_saved', {'success': True})
+    except Exception as e:
+        print(f"Error saving settings: {e}")
+        emit('settings_saved', {'success': False, 'error': str(e)})
 
 # --- Recording Event Handlers ---
 

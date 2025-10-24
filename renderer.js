@@ -836,30 +836,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleSettingChange(e) {
-        const input = e.target;
-        const key = input.name;
-        let value;
-
-        if (input.type === 'checkbox') {
-            value = input.checked;
-        } else if (input.type === 'number' || input.type === 'range') {
-            value = parseFloat(input.value);
-        } else {
-            value = input.value;
-        }
-
-        console.log(`Setting changed: ${key}, New value: ${value}`);
-        socket.emit('update_config', { key: key, value: value });
-    }
-
-    // Add event listeners to all form elements in the settings form
-    if (settingsForm) {
-        Array.from(settingsForm.elements).forEach(element => {
-            element.addEventListener('change', handleSettingChange);
-        });
-    }
-
     // Load settings when the DOM is ready
     loadSettings().then(() => {
         // Open the first accordion section by default
@@ -877,14 +853,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', () => {
-            // The settings are already saved on change, so this is just for UX.
-            // We can give a visual confirmation.
-            saveSettingsBtn.textContent = 'Saved!';
-            saveSettingsBtn.style.backgroundColor = '#2ecc71'; // Green
-            setTimeout(() => {
-                saveSettingsBtn.textContent = 'Save Settings';
-                saveSettingsBtn.style.backgroundColor = ''; // Revert to default
-            }, 2000);
+            const settings = {};
+            const elements = settingsForm.elements;
+            for (let i = 0; i < elements.length; i++) {
+                const item = elements[i];
+                if (item.name) {
+                    if (item.type === 'checkbox') {
+                        settings[item.name] = item.checked;
+                    } else if (item.type === 'number' || item.type === 'range') {
+                        settings[item.name] = parseFloat(item.value);
+                    } else {
+                        settings[item.name] = item.value;
+                    }
+                }
+            }
+
+            console.log('Saving settings:', settings);
+            socket.emit('save_settings', { settings: settings });
+
+            // Provide visual feedback
+            saveSettingsBtn.textContent = 'Saving...';
+            saveSettingsBtn.disabled = true;
         });
     }
+
+    socket.on('settings_saved', (data) => {
+        if (data.success) {
+            saveSettingsBtn.textContent = 'Saved!';
+            saveSettingsBtn.style.backgroundColor = '#2ecc71'; // Green
+        } else {
+            saveSettingsBtn.textContent = 'Error!';
+            saveSettingsBtn.style.backgroundColor = '#e74c3c'; // Red
+            showNotification(`Error saving settings: ${data.error}`, 'Error');
+        }
+
+        setTimeout(() => {
+            saveSettingsBtn.textContent = 'Save Settings';
+            saveSettingsBtn.style.backgroundColor = ''; // Revert to default
+            saveSettingsBtn.disabled = false;
+        }, 2000);
+    });
 });
